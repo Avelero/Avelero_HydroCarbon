@@ -19,3 +19,5 @@ data_correction/input/Product_data.csv
 data_correction/output/Product_data_final.csv
 data_correction/output/archives/Product_data_pre_distance_cleanup_20251128_170204.csv
 data_correction/output/archives/Product_data_pre_targeted_cleanup_20251128_164102.csv
+data_correction/output/archives/Product_data_pre_weight_fix_20251128_165050.csv
+data_creation/output/Product_data.csv
