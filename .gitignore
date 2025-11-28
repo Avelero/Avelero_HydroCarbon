@@ -1,61 +1,15 @@
 # Environment variables
 .env
 
-# Python
+# Python cache
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-ENV/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
 
-# Output and Input Directories (contains generated/processed data)
-data_creation/output/
-data_correction/input/
-
-# Checkpoint files (for recovery, can be regenerated)
-data_creation/output/checkpoints/
-data_correction/input/checkpoints/
-
-# Generated CSV and JSON files (project-specific)
-data_creation/output/*.csv
-data_creation/output/*.json
-data_correction/input/*.csv
-data_correction/input/*.json
-
-# Claude Code settings (user-specific, should not be committed)
+# Claude Code settings (user-specific)
 .claude/
 
-# IDE and Editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Development documentation
+CLAUDE.md
+data_splitter/data_splitting_strategy.md
 
-# OS-specific files
-.DS_Store
-Thumbs.db
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db:encryptable
+# Checkpoints (can be regenerated)
+**/checkpoints/

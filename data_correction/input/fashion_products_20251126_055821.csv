@@ -1,0 +1,7 @@
+product_name,gender,parent_category,category,manufacturer_country,materials,weight_kg,total_distance_km
+High-Rise Slim Fit Jeans,Female,Bottoms,Jeans,AL,"{""cotton_conventional"": 0.974, ""elastane"": 0.026}",0.987,3124.87
+Distressed Boyfriend Jeans,Female,Bottoms,Jeans,MV,"{""cotton_organic"": 0.881, ""polyester_virgin"": 0.119}",1.156,13458.19
+Urban Lifestyle Sneakers,Female,Footwear,Sneakers,PT,"{""leather_bovine"": 0.653, ""eva"": 0.298, ""polyester_virgin"": 0.049}",0.872,2789.45
+Athletic Mesh Trainers,Female,Footwear,Sneakers,NG,"{""polyester_virgin"": 0.785, ""eva"": 0.215}",0.719,10987.64
+Ribbed Cotton Tank Top,Female,Tops,Tank Tops,DE,"{""cotton_conventional"": 0.958, ""elastane"": 0.042}",0.183,943.51
+Flowy Modal Racerback,Female,Tops,Tank Tops,GF,"{""modal"": 0.927, ""elastane"": 0.073}",0.236,14123.92

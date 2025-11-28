@@ -26,10 +26,10 @@ TIER_1_RPM_LIMIT = 2000  # Requests per minute (Flash models)
 TIER_1_TPM_LIMIT = 1000000  # Tokens per minute
 REQUEST_DELAY_SECONDS = 2  # Conservative delay between batches
 RETRY_DELAY_SECONDS = 5  # Delay before retry on rate limit error
-MAX_OUTPUT_TOKENS = 1000000  # Maximum tokens to generate (increased for larger batches)
+MAX_OUTPUT_TOKENS = 10000000  # Maximum tokens to generate (increased for larger batches)
 
 # Parallel generation settings
-PARALLEL_WORKERS = 5  # Number of concurrent workers (conservative: 5 workers * 60s = 300 RPM max)
+PARALLEL_WORKERS = 25  # Number of concurrent workers (increased for high throughput)
 RATE_LIMIT_BUFFER = 0.8  # Use 80% of rate limit capacity for safety (1600 RPM effective)
 RATE_LIMIT_PAUSE_SECONDS = 65  # Pause duration when rate limit is hit (wait for RPM window to reset)
 

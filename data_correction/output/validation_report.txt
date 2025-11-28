@@ -1,0 +1,117 @@
+================================================================================
+DATA VALIDATION AND CLEANING REPORT
+================================================================================
+Generated: 2025-11-28 12:18:22
+
+Input File:  input/Product_data.csv
+Output File: output/Product_data_cleaned.csv
+
+--------------------------------------------------------------------------------
+SUMMARY
+--------------------------------------------------------------------------------
+Original rows:     877,982
+Incomplete rows:   2,994 (0.34%)
+Removed rows:      2,994 (0.34%)
+Final rows:        874,988 (99.66%)
+
+--------------------------------------------------------------------------------
+NULL VALUES BY COLUMN
+--------------------------------------------------------------------------------
+product_name                  : 0 null values
+gender                        : 0 null values
+parent_category               : 0 null values
+category                      : 0 null values
+manufacturer_country          : 2,978 null values
+materials                     : 0 null values
+weight_kg                     : 0 null values
+total_distance_km             : 17 null values
+
+--------------------------------------------------------------------------------
+SAMPLE OF REMOVED ROWS (First 20)
+--------------------------------------------------------------------------------
+Row 5,714:
+  Product: Pleated Emerald Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,724:
+  Product: Pleated Olive Green Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,734:
+  Product: Pleated Cream Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,744:
+  Product: Pleated Teal Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,754:
+  Product: Pleated Mustard Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,764:
+  Product: Pleated Sky Blue Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,774:
+  Product: Pleated Sage Green Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,784:
+  Product: Pleated Fuchsia Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,794:
+  Product: Pleated Black Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,804:
+  Product: Pleated Rust Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,814:
+  Product: Pleated Burgundy Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,824:
+  Product: Pleated Coral Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,834:
+  Product: Pleated Dusty Pink Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,844:
+  Product: Pleated Terracotta Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,854:
+  Product: Pleated Charcoal Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,864:
+  Product: Pleated Lavender Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,874:
+  Product: Pleated Black Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,884:
+  Product: Pleated Rust Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,894:
+  Product: Pleated Burgundy Maxi Skirt
+  Missing: manufacturer_country
+
+Row 5,904:
+  Product: Pleated Coral Maxi Skirt
+  Missing: manufacturer_country
+
+--------------------------------------------------------------------------------
+VALIDATION RESULT: PASS ✓
+--------------------------------------------------------------------------------
+Cleaned dataset saved to: output/Product_data_cleaned.csv
+Final dataset contains 874,988 complete rows
+================================================================================

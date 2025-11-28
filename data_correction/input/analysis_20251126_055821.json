@@ -1,0 +1,42 @@
+{
+  "total_products": 6,
+  "categories_covered": 3,
+  "category_distribution": {
+    "Jeans": 2,
+    "Sneakers": 2,
+    "Tank Tops": 2
+  },
+  "country_distribution": {
+    "AL": 1,
+    "MV": 1,
+    "PT": 1,
+    "NG": 1,
+    "DE": 1,
+    "GF": 1
+  },
+  "weight_stats": {
+    "mean": 0.6921666666666666,
+    "std": 0.40061623365343874,
+    "min": 0.183,
+    "max": 1.156,
+    "median": 0.7955
+  },
+  "distance_stats": {
+    "mean": 7571.263333333333,
+    "std": 5930.060896407951,
+    "min": 943.51,
+    "max": 14123.92,
+    "median": 7056.254999999999
+  },
+  "total_material_entries": 13,
+  "unique_materials": 7,
+  "top_materials": {
+    "elastane": 3,
+    "polyester_virgin": 3,
+    "cotton_conventional": 2,
+    "eva": 2,
+    "cotton_organic": 1,
+    "leather_bovine": 1,
+    "modal": 1
+  }
+}
