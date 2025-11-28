@@ -26,20 +26,36 @@ wheels/
 .installed.cfg
 *.egg
 
-# Output files
-output/
-*.csv
-*.json
+# Output and Input Directories (contains generated/processed data)
+data_creation/output/
+data_correction/input/
 
-# IDE
+# Checkpoint files (for recovery, can be regenerated)
+data_creation/output/checkpoints/
+data_correction/input/checkpoints/
+
+# Generated CSV and JSON files (project-specific)
+data_creation/output/*.csv
+data_creation/output/*.json
+data_correction/input/*.csv
+data_correction/input/*.json
+
+# Claude Code settings (user-specific, should not be committed)
+.claude/
+
+# IDE and Editor files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS
+# OS-specific files
 .DS_Store
 Thumbs.db
-
-.claude/
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db:encryptable
