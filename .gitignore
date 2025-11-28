@@ -13,3 +13,9 @@ data_splitter/data_splitting_strategy.md
 
 # Checkpoints (can be regenerated)
 **/checkpoints/
+
+# Large CSV data files (exceed GitHub's 100MB limit)
+data_correction/input/Product_data.csv
+data_correction/output/Product_data_final.csv
+data_correction/output/archives/Product_data_pre_distance_cleanup_20251128_170204.csv
+data_correction/output/archives/Product_data_pre_targeted_cleanup_20251128_164102.csv
