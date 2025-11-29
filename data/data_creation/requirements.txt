@@ -1,0 +1,9 @@
+# Fashion Product Dataset Generator
+# NO PYTORCH REQUIRED!
+
+# Core dependencies
+pandas>=2.0.0
+google-generativeai>=0.8.0
+
+# Optional but recommended
+python-dotenv>=1.0.0  # For loading .env files with API keys
