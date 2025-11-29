@@ -1,0 +1,668 @@
+{
+  "timestamp": "2025-11-29T07:21:28.830224",
+  "total_products": 901573,
+  "analysis_type": "comprehensive_no_limits",
+  "total_categories": 58,
+  "all_categories": {
+    "Polos": 28053,
+    "Short Sleeve Shirts": 27093,
+    "Jumpsuits": 25615,
+    "Sandals": 25008,
+    "Maxi Dresses": 24725,
+    "Mini Dresses": 23667,
+    "Casual Shoes": 23573,
+    "Bombers": 23305,
+    "Gowns": 23229,
+    "Midi Dresses": 22052,
+    "Denim Jackets": 21999,
+    "Sneakers": 21714,
+    "Leather Jackets": 21321,
+    "Button-Ups": 15683,
+    "Boots": 15608,
+    "Vests": 15527,
+    "Shorts": 15400,
+    "Athletic Shoes": 15291,
+    "Leggings": 15012,
+    "Heavy Coats": 14849,
+    "Maxi Skirts": 14585,
+    "Sweaters": 14358,
+    "Jeans": 14303,
+    "Sweatpants": 14284,
+    "Long Sleeve Shirts": 14114,
+    "Sweatpants & Joggers": 13988,
+    "Sleeveless": 13807,
+    "Midi Skirts": 13801,
+    "Blazers": 13428,
+    "Casual Pants": 13335,
+    "Tank Tops": 13310,
+    "Bodysuits": 13296,
+    "Coats": 13296,
+    "Swimwear": 13216,
+    "Light Jackets": 13198,
+    "Pants": 12894,
+    "Crop Tops": 12756,
+    "Hoodies": 12749,
+    "Fur & Faux Fur": 12707,
+    "Blouses": 12700,
+    "Jackets": 12605,
+    "Raincoats": 12603,
+    "Cropped Pants": 12542,
+    "Joggers": 12538,
+    "Sweatshirts & Hoodies": 12475,
+    "Sweaters & Knitwear": 12440,
+    "Sweatshirts": 12296,
+    "Dress Shoes": 12037,
+    "Mini Skirts": 12032,
+    "Flats": 11825,
+    "Down Jackets": 11816,
+    "Rain Jackets": 11657,
+    "Cloaks & Capes": 11595,
+    "Parkas": 11431,
+    "Jerseys": 11188,
+    "Loafers": 11062,
+    "Heels": 10578,
+    "Denim": 10004
+  },
+  "total_parent_categories": 5,
+  "all_parent_categories": {
+    "Tops": 226318,
+    "Outerwear": 221337,
+    "Bottoms": 213549,
+    "Footwear": 146696,
+    "Dresses": 93673
+  },
+  "all_genders": {
+    "Female": 556718,
+    "Male": 344855
+  },
+  "total_countries": 248,
+  "all_countries": {
+    "TT": 5195,
+    "LV": 4975,
+    "AU": 4952,
+    "DK": 4912,
+    "SV": 4890,
+    "PA": 4889,
+    "ME": 4868,
+    "HN": 4833,
+    "NI": 4810,
+    "US": 4734,
+    "UY": 4684,
+    "TN": 4658,
+    "CG": 4653,
+    "LB": 4621,
+    "CW": 4620,
+    "ZA": 4618,
+    "GI": 4597,
+    "UA": 4585,
+    "SD": 4566,
+    "EE": 4556,
+    "LT": 4551,
+    "BF": 4507,
+    "MO": 4497,
+    "BL": 4467,
+    "AQ": 4455,
+    "PL": 4446,
+    "AE": 4438,
+    "RS": 4433,
+    "BR": 4427,
+    "PR": 4393,
+    "GE": 4380,
+    "SR": 4371,
+    "DJ": 4359,
+    "WS": 4354,
+    "DZ": 4325,
+    "JM": 4315,
+    "UG": 4296,
+    "AO": 4274,
+    "PH": 4257,
+    "PG": 4223,
+    "BE": 4221,
+    "MM": 4219,
+    "TG": 4207,
+    "HU": 4205,
+    "TJ": 4196,
+    "AL": 4179,
+    "LC": 4175,
+    "MY": 4163,
+    "EH": 4152,
+    "MG": 4139,
+    "GB": 4120,
+    "SS": 4117,
+    "SB": 4106,
+    "GA": 4102,
+    "ET": 4094,
+    "CH": 4080,
+    "MT": 4043,
+    "JP": 4042,
+    "SA": 4042,
+    "PS": 4039,
+    "QA": 4021,
+    "VU": 4012,
+    "SI": 4011,
+    "CI": 4006,
+    "ES": 3994,
+    "MZ": 3990,
+    "RO": 3973,
+    "BH": 3959,
+    "CV": 3919,
+    "TD": 3913,
+    "VA": 3910,
+    "CA": 3908,
+    "TZ": 3907,
+    "IS": 3906,
+    "SK": 3905,
+    "AW": 3901,
+    "MK": 3886,
+    "BQ": 3875,
+    "VN": 3868,
+    "TM": 3863,
+    "FJ": 3860,
+    "DE": 3843,
+    "LY": 3840,
+    "CZ": 3830,
+    "KR": 3823,
+    "NP": 3815,
+    "SM": 3812,
+    "KW": 3798,
+    "GT": 3793,
+    "NF": 3777,
+    "MN": 3773,
+    "UZ": 3773,
+    "AS": 3771,
+    "KY": 3760,
+    "VE": 3751,
+    "IM": 3745,
+    "HM": 3740,
+    "AD": 3735,
+    "BN": 3725,
+    "BM": 3721,
+    "ML": 3718,
+    "SL": 3717,
+    "VC": 3706,
+    "MX": 3704,
+    "MH": 3700,
+    "OM": 3690,
+    "FO": 3689,
+    "EC": 3688,
+    "AG": 3683,
+    "AT": 3676,
+    "SX": 3676,
+    "MA": 3675,
+    "BY": 3665,
+    "KZ": 3663,
+    "DM": 3660,
+    "HR": 3655,
+    "NR": 3655,
+    "CC": 3652,
+    "GY": 3651,
+    "MS": 3649,
+    "BJ": 3643,
+    "NO": 3639,
+    "SO": 3627,
+    "VG": 3611,
+    "KM": 3611,
+    "BI": 3609,
+    "GL": 3608,
+    "AR": 3601,
+    "CM": 3600,
+    "BS": 3600,
+    "JE": 3598,
+    "FK": 3596,
+    "LS": 3596,
+    "KN": 3594,
+    "JO": 3580,
+    "CY": 3565,
+    "NG": 3549,
+    "BA": 3548,
+    "KP": 3544,
+    "SN": 3540,
+    "RU": 3533,
+    "SE": 3524,
+    "IE": 3516,
+    "MC": 3508,
+    "LI": 3501,
+    "FR": 3496,
+    "MW": 3495,
+    "CF": 3495,
+    "KE": 3493,
+    "PM": 3483,
+    "SH": 3477,
+    "TO": 3476,
+    "GD": 3473,
+    "BG": 3472,
+    "GU": 3466,
+    "IR": 3465,
+    "NE": 3458,
+    "SZ": 3457,
+    "TL": 3446,
+    "KG": 3438,
+    "LU": 3432,
+    "NZ": 3407,
+    "YT": 3402,
+    "UM": 3399,
+    "GH": 3395,
+    "CK": 3394,
+    "PW": 3382,
+    "YE": 3368,
+    "GN": 3364,
+    "DO": 3362,
+    "AI": 3359,
+    "BW": 3351,
+    "PF": 3345,
+    "CN": 3336,
+    "CL": 3336,
+    "IL": 3324,
+    "VI": 3321,
+    "TC": 3313,
+    "MQ": 3291,
+    "MV": 3288,
+    "LA": 3285,
+    "GG": 3266,
+    "IQ": 3263,
+    "NC": 3259,
+    "KH": 3258,
+    "MD": 3247,
+    "NL": 3246,
+    "TR": 3242,
+    "BZ": 3242,
+    "ZW": 3240,
+    "AM": 3233,
+    "CD": 3226,
+    "CX": 3218,
+    "MU": 3210,
+    "ER": 3204,
+    "ID": 3186,
+    "HK": 3186,
+    "IT": 3185,
+    "PK": 3184,
+    "AZ": 3184,
+    "ZM": 3170,
+    "BB": 3169,
+    "TH": 3166,
+    "GQ": 3141,
+    "ST": 3120,
+    "AX": 3074,
+    "BO": 3062,
+    "GM": 3056,
+    "SY": 3038,
+    "SG": 3028,
+    "RE": 3010,
+    "GS": 3004,
+    "BD": 2986,
+    "PN": 2979,
+    "FI": 2968,
+    "SJ": 2950,
+    "HT": 2937,
+    "GF": 2917,
+    "LK": 2915,
+    "CU": 2908,
+    "WF": 2908,
+    "PY": 2901,
+    "PT": 2897,
+    "RW": 2896,
+    "TV": 2892,
+    "CR": 2887,
+    "TW": 2884,
+    "IO": 2882,
+    "GP": 2865,
+    "PE": 2849,
+    "CO": 2788,
+    "GR": 2776,
+    "EG": 2739,
+    "GW": 2736,
+    "TK": 2707,
+    "BV": 2675,
+    "IN": 2671,
+    "SC": 2654,
+    "MF": 2563,
+    "MR": 2504,
+    "NU": 2464,
+    "KI": 2446,
+    "LR": 2440,
+    "TF": 2346,
+    "AF": 2295,
+    "BT": 2239,
+    "FM": 2123,
+    "MP": 2029
+  },
+  "total_materials": 30,
+  "all_materials": {
+    "polyester_virgin": 397924,
+    "elastane": 353710,
+    "cotton_conventional": 293703,
+    "viscose": 179372,
+    "polyester_recycled": 136101,
+    "polyamide_6": 98782,
+    "leather_bovine": 91944,
+    "eva": 73724,
+    "modal": 48927,
+    "wool_generic": 43961,
+    "natural_rubber": 43748,
+    "acrylic": 43487,
+    "metal_brass": 41248,
+    "polyamide_66": 39827,
+    "synthetic_rubber_sbr": 35502,
+    "cotton_organic": 34431,
+    "membrane_tpu": 34338,
+    "linen_flax": 33793,
+    "coated_fabric_pu": 19626,
+    "silk": 19441,
+    "tpu": 13309,
+    "metal_steel": 8573,
+    "wool_merino": 7030,
+    "cashmere": 4730,
+    "rubber_synthetic": 1668,
+    "jute_sole": 83,
+    "jute": 58,
+    "polyamide_recycled": 28,
+    "cotton_recycled": 4,
+    "shearling_faux": 2
+  },
+  "weight_statistics": {
+    "min": 0.01,
+    "max": 9.0,
+    "mean": 0.8543924781798035,
+    "median": 0.726,
+    "std": 0.47079376626244185
+  },
+  "distance_statistics": {
+    "min": 0.01,
+    "max": 39987.65,
+    "mean": 12498.166445147537,
+    "median": 12345.67,
+    "std": 6667.777120829547
+  },
+  "hierarchy": [
+    {
+      "parent_category": "Bottoms",
+      "category": "Jumpsuits",
+      "count": 25615
+    },
+    {
+      "parent_category": "Bottoms",
+      "category": "Shorts",
+      "count": 15400
+    },
+    {
+      "parent_category": "Bottoms",
+      "category": "Leggings",
+      "count": 15012
+    },
+    {
+      "parent_category": "Bottoms",
+      "category": "Maxi Skirts",
+      "count": 14585
+    },
+    {
+      "parent_category": "Bottoms",
+      "category": "Jeans",
+      "count": 14303
+    },
+    {
+      "parent_category": "Bottoms",
+      "category": "Sweatpants",
+      "count": 14284
+    },
+    {
+      "parent_category": "Bottoms",
+      "category": "Sweatpants & Joggers",
+      "count": 13988
+    },
+    {
+      "parent_category": "Bottoms",
+      "category": "Midi Skirts",
+      "count": 13801
+    },
+    {
+      "parent_category": "Bottoms",
+      "category": "Casual Pants",
+      "count": 13335
+    },
+    {
+      "parent_category": "Bottoms",
+      "category": "Swimwear",
+      "count": 13216
+    },
+    {
+      "parent_category": "Bottoms",
+      "category": "Pants",
+      "count": 12894
+    },
+    {
+      "parent_category": "Bottoms",
+      "category": "Cropped Pants",
+      "count": 12542
+    },
+    {
+      "parent_category": "Bottoms",
+      "category": "Joggers",
+      "count": 12538
+    },
+    {
+      "parent_category": "Bottoms",
+      "category": "Mini Skirts",
+      "count": 12032
+    },
+    {
+      "parent_category": "Bottoms",
+      "category": "Denim",
+      "count": 10004
+    },
+    {
+      "parent_category": "Dresses",
+      "category": "Maxi Dresses",
+      "count": 24725
+    },
+    {
+      "parent_category": "Dresses",
+      "category": "Mini Dresses",
+      "count": 23667
+    },
+    {
+      "parent_category": "Dresses",
+      "category": "Gowns",
+      "count": 23229
+    },
+    {
+      "parent_category": "Dresses",
+      "category": "Midi Dresses",
+      "count": 22052
+    },
+    {
+      "parent_category": "Footwear",
+      "category": "Sandals",
+      "count": 25008
+    },
+    {
+      "parent_category": "Footwear",
+      "category": "Casual Shoes",
+      "count": 23573
+    },
+    {
+      "parent_category": "Footwear",
+      "category": "Sneakers",
+      "count": 21714
+    },
+    {
+      "parent_category": "Footwear",
+      "category": "Boots",
+      "count": 15608
+    },
+    {
+      "parent_category": "Footwear",
+      "category": "Athletic Shoes",
+      "count": 15291
+    },
+    {
+      "parent_category": "Footwear",
+      "category": "Dress Shoes",
+      "count": 12037
+    },
+    {
+      "parent_category": "Footwear",
+      "category": "Flats",
+      "count": 11825
+    },
+    {
+      "parent_category": "Footwear",
+      "category": "Loafers",
+      "count": 11062
+    },
+    {
+      "parent_category": "Footwear",
+      "category": "Heels",
+      "count": 10578
+    },
+    {
+      "parent_category": "Outerwear",
+      "category": "Bombers",
+      "count": 23305
+    },
+    {
+      "parent_category": "Outerwear",
+      "category": "Denim Jackets",
+      "count": 21999
+    },
+    {
+      "parent_category": "Outerwear",
+      "category": "Leather Jackets",
+      "count": 21321
+    },
+    {
+      "parent_category": "Outerwear",
+      "category": "Vests",
+      "count": 15527
+    },
+    {
+      "parent_category": "Outerwear",
+      "category": "Heavy Coats",
+      "count": 14849
+    },
+    {
+      "parent_category": "Outerwear",
+      "category": "Blazers",
+      "count": 13428
+    },
+    {
+      "parent_category": "Outerwear",
+      "category": "Coats",
+      "count": 13296
+    },
+    {
+      "parent_category": "Outerwear",
+      "category": "Light Jackets",
+      "count": 13198
+    },
+    {
+      "parent_category": "Outerwear",
+      "category": "Fur & Faux Fur",
+      "count": 12707
+    },
+    {
+      "parent_category": "Outerwear",
+      "category": "Jackets",
+      "count": 12605
+    },
+    {
+      "parent_category": "Outerwear",
+      "category": "Raincoats",
+      "count": 12603
+    },
+    {
+      "parent_category": "Outerwear",
+      "category": "Down Jackets",
+      "count": 11816
+    },
+    {
+      "parent_category": "Outerwear",
+      "category": "Rain Jackets",
+      "count": 11657
+    },
+    {
+      "parent_category": "Outerwear",
+      "category": "Cloaks & Capes",
+      "count": 11595
+    },
+    {
+      "parent_category": "Outerwear",
+      "category": "Parkas",
+      "count": 11431
+    },
+    {
+      "parent_category": "Tops",
+      "category": "Polos",
+      "count": 28053
+    },
+    {
+      "parent_category": "Tops",
+      "category": "Short Sleeve Shirts",
+      "count": 27093
+    },
+    {
+      "parent_category": "Tops",
+      "category": "Button-Ups",
+      "count": 15683
+    },
+    {
+      "parent_category": "Tops",
+      "category": "Sweaters",
+      "count": 14358
+    },
+    {
+      "parent_category": "Tops",
+      "category": "Long Sleeve Shirts",
+      "count": 14114
+    },
+    {
+      "parent_category": "Tops",
+      "category": "Sleeveless",
+      "count": 13807
+    },
+    {
+      "parent_category": "Tops",
+      "category": "Tank Tops",
+      "count": 13310
+    },
+    {
+      "parent_category": "Tops",
+      "category": "Bodysuits",
+      "count": 13296
+    },
+    {
+      "parent_category": "Tops",
+      "category": "Crop Tops",
+      "count": 12756
+    },
+    {
+      "parent_category": "Tops",
+      "category": "Hoodies",
+      "count": 12749
+    },
+    {
+      "parent_category": "Tops",
+      "category": "Blouses",
+      "count": 12700
+    },
+    {
+      "parent_category": "Tops",
+      "category": "Sweatshirts & Hoodies",
+      "count": 12475
+    },
+    {
+      "parent_category": "Tops",
+      "category": "Sweaters & Knitwear",
+      "count": 12440
+    },
+    {
+      "parent_category": "Tops",
+      "category": "Sweatshirts",
+      "count": 12296
+    },
+    {
+      "parent_category": "Tops",
+      "category": "Jerseys",
+      "count": 11188
+    }
+  ]
+}

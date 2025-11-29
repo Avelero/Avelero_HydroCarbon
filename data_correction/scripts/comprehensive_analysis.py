@@ -18,7 +18,7 @@ from datetime import datetime
 from pathlib import Path
 
 # Configuration
-INPUT_CSV = "data_correction/output/Product_data_complete.csv"
+INPUT_CSV = "data_correction/output/Product_data_final.csv"
 OUTPUT_DIR = "data_correction/output/comprehensive_analysis"
 REPORT_FILE = "data_correction/output/comprehensive_analysis/full_analysis_report.json"
 DPI = 300
