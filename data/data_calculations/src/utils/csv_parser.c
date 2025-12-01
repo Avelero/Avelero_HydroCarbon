@@ -1,9 +1,50 @@
+/**
+ * @file csv_parser.c
+ * @brief Implementation of unified CSV parsing utilities
+ *
+ * @author Moussa Ouallaf
+ * @date 2025-12-01
+ * @version 2.0
+ */
+
 #define _POSIX_C_SOURCE 200809L
 #include "csv_parser.h"
+#include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
 
-// Parse a CSV line handling quoted fields and escaped quotes
+char* trim_whitespace(char *str) {
+    if (str == NULL) {
+        return NULL;
+    }
+
+    /* Trim leading whitespace */
+    while (isspace((unsigned char)*str)) {
+        str++;
+    }
+
+    /* Handle empty string */
+    if (*str == '\0') {
+        return str;
+    }
+
+    /* Trim trailing whitespace */
+    char *end = str + strlen(str) - 1;
+    while (end > str && isspace((unsigned char)*end)) {
+        end--;
+    }
+
+    /* Null-terminate after last non-whitespace character */
+    *(end + 1) = '\0';
+
+    return str;
+}
+
 CSVRow* parse_csv_line(const char *line) {
+    if (line == NULL) {
+        return NULL;
+    }
+
     CSVRow *row = (CSVRow*)malloc(sizeof(CSVRow));
     if (!row) return NULL;
     
@@ -24,20 +65,20 @@ CSVRow* parse_csv_line(const char *line) {
         char c = line[i];
         
         if (c == '"') {
-            // Check for escaped quote (two consecutive quotes)
+            /* Check for escaped quote (two consecutive quotes) */
             if (in_quotes && line[i + 1] == '"') {
                 buffer[buffer_pos++] = '"';
                 i += 2;
                 continue;
             }
-            // Toggle quote state
+            /* Toggle quote state */
             in_quotes = !in_quotes;
             i++;
             continue;
         }
         
         if (c == ',' && !in_quotes) {
-            // End of field
+            /* End of field */
             buffer[buffer_pos] = '\0';
             row->fields[row->field_count] = strdup(buffer);
             row->field_count++;
@@ -46,14 +87,14 @@ CSVRow* parse_csv_line(const char *line) {
             continue;
         }
         
-        // Add character to buffer
+        /* Add character to buffer */
         if (buffer_pos < MAX_FIELD_LENGTH - 1) {
             buffer[buffer_pos++] = c;
         }
         i++;
     }
     
-    // Add last field
+    /* Add last field */
     buffer[buffer_pos] = '\0';
     row->fields[row->field_count] = strdup(buffer);
     row->field_count++;
@@ -61,7 +102,6 @@ CSVRow* parse_csv_line(const char *line) {
     return row;
 }
 
-// Free memory allocated for CSV row
 void free_csv_row(CSVRow *row) {
     if (!row) return;
     
@@ -72,7 +112,6 @@ void free_csv_row(CSVRow *row) {
     free(row);
 }
 
-// Get field by index
 char* get_field(CSVRow *row, int index) {
     if (!row || index < 0 || index >= row->field_count) {
         return NULL;
@@ -80,11 +119,10 @@ char* get_field(CSVRow *row, int index) {
     return row->fields[index];
 }
 
-// Skip header line in CSV file
 int skip_header(FILE *fp) {
     char line[MAX_LINE_LENGTH];
     if (fgets(line, sizeof(line), fp)) {
-        return 0; // Success
+        return 0; /* Success */
     }
-    return -1; // Error
+    return -1; /* Error */
 }

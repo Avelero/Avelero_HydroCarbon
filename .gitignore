@@ -3,27 +3,74 @@
 
 # Python cache
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
 
 # Claude Code settings (user-specific)
 .claude/
 
 # Development documentation
 CLAUDE.md
-data/data_splitter/data_splitting_strategy.md
 
 # Checkpoints (can be regenerated)
 **/checkpoints/
 
+# Build artifacts
+**/build/
+**/bin/
+*.o
+*.a
+*.so
+*.exe
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# ============================================================================
 # Large CSV data files (exceed GitHub's 100MB limit)
-data/data_calculations/input/Product_data_final.csv
-data/data_correction/input/Product_data.csv
-data/data_correction/output/Product_data_final.csv
-data/data_correction/output/archives/Product_data_pre_distance_cleanup_20251128_170204.csv
-data/data_correction/output/archives/Product_data_pre_targeted_cleanup_20251128_164102.csv
-data/data_correction/output/archives/Product_data_pre_weight_fix_20251128_165050.csv
-data/data_correction/output/archives/Product_data_pre_category_material_fix_20251129_071726.csv
-data/data_correction/output/archives/Product_data_pre_dress_fix_20251129_070550.csv
+# ============================================================================
+
+# Data creation output (large generated files)
 data/data_creation/output/Product_data.csv
 data/data_creation/output/Product_data_extra.csv
-data/data_creation/output/fashion_products_20251126_055821.csv
+data/data_creation/output/fashion_products_*.csv
 data/data_creation/output/test_extra_products.csv
+
+# Data correction files (large processed files)
+data/data_correction/input/Product_data.csv
+data/data_correction/output/Product_data_final.csv
+data/data_correction/output/archives/
+
+# Data calculations input/output (large files)
+data/data_calculations/input/Product_data_final.csv
+data/data_calculations/output/Product_data_with_footprints.csv
+data/data_calculations/output/carbon_footprint_results.csv
+data/data_calculations/output/material_footprints.csv
+data/data_calculations/output/material_water_footprints.csv
+data/data_calculations/output/transport_footprints.csv
+
+# Data splitter (large files)
+data/data_splitter/data_splitting_strategy.md
+
+# ============================================================================
+# Files to KEEP (small reference datasets - DO NOT ignore these)
+# ============================================================================
+# !data/data_calculations/input/material_dataset_final.csv
+# !data/data_calculations/input/transport_emission_factors_generalised.csv
+# !data/data_calculations/input/utility_attractiveness.csv
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.log
