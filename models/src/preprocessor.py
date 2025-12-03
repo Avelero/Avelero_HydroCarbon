@@ -20,13 +20,17 @@ class FootprintPreprocessor:
     Comprehensive preprocessing pipeline for footprint prediction.
     
     Workflow:
-    1. Create missing value indicators
-    2. Encode categorical features
-    3. Scale numerical features
-    4. Log-transform formula features (to match log-transformed targets)
+    1. Create interaction features (combined patterns)
+    2. Create missing value indicators
+    3. Encode categorical features (label + target encoding)
+    4. Scale numerical features
+    5. Log-transform formula features (to match log-transformed targets)
     """
     
     FORMULA_FEATURES = ['formula_carbon_material', 'formula_carbon_transport', 'formula_water_total']
+    
+    # Target columns for target encoding
+    TARGET_ENCODING_COLS = ['carbon_material', 'carbon_transport', 'water_total']
     
     def __init__(self, log_transform_formula: bool = True):
         """
@@ -38,6 +42,7 @@ class FootprintPreprocessor:
         self.numerical_scaler = StandardScaler()
         self.log_transform_formula = log_transform_formula
         self.formula_mins = {}  # Store mins for log transform
+        self.target_encoding_maps = {}  # Store target encoding mappings
         self.is_fitted = False
     
     def log_transform_formula_features(self, df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
@@ -199,6 +204,96 @@ class FootprintPreprocessor:
         
         return df
     
+    def target_encode_categories(
+        self, 
+        df: pd.DataFrame, 
+        y: pd.DataFrame = None, 
+        fit: bool = True
+    ) -> pd.DataFrame:
+        """
+        Apply target encoding to categorical features.
+        
+        Target encoding replaces category with mean target value for that category.
+        This gives the model DIRECT information about footprint patterns per category.
+        
+        Example:
+            category="Leather Jacket" → category_target_carbon = 8.5 (avg carbon footprint)
+            category="T-shirt" → category_target_carbon = 0.45
+        
+        This is MUCH more informative than label encoding (Jacket=47, T-shirt=23).
+        
+        Uses smoothing to prevent overfitting on rare categories:
+            encoded = (count * category_mean + smoothing * global_mean) / (count + smoothing)
+        
+        Args:
+            df: Features DataFrame
+            y: Targets DataFrame (required for fit=True)
+            fit: If True, compute and store encoding maps
+            
+        Returns:
+            DataFrame with target-encoded features added
+        """
+        df = df.copy()
+        smoothing = 10  # Smoothing parameter to prevent overfitting
+        
+        if fit:
+            if y is None:
+                raise ValueError("y (targets) must be provided for fit=True")
+            
+            self.target_encoding_maps = {}
+            
+            # For each categorical column
+            for cat_col in CATEGORICAL_COLUMNS:
+                self.target_encoding_maps[cat_col] = {}
+                cat_values = df[cat_col].fillna('Unknown')
+                
+                # For each target we want to encode
+                for target_col in self.TARGET_ENCODING_COLS:
+                    global_mean = y[target_col].mean()
+                    
+                    # Calculate mean target per category with smoothing
+                    category_stats = pd.DataFrame({
+                        'category': cat_values,
+                        'target': y[target_col]
+                    }).groupby('category').agg({
+                        'target': ['mean', 'count']
+                    })
+                    category_stats.columns = ['mean', 'count']
+                    
+                    # Apply smoothing
+                    category_stats['smoothed_mean'] = (
+                        (category_stats['count'] * category_stats['mean'] + smoothing * global_mean) 
+                        / (category_stats['count'] + smoothing)
+                    )
+                    
+                    # Store mapping
+                    encoding_map = category_stats['smoothed_mean'].to_dict()
+                    encoding_map['__global_mean__'] = global_mean
+                    self.target_encoding_maps[cat_col][target_col] = encoding_map
+                    
+                    # Apply encoding
+                    feature_name = f'{cat_col}_target_{target_col.replace("_", "")}'
+                    df[feature_name] = cat_values.map(encoding_map).fillna(global_mean)
+            
+            n_features = len(CATEGORICAL_COLUMNS) * len(self.TARGET_ENCODING_COLS)
+            print(f"[TARGET ENCODING] Created {n_features} target-encoded features")
+        
+        else:
+            # Apply stored encoding maps
+            for cat_col in CATEGORICAL_COLUMNS:
+                cat_values = df[cat_col].fillna('Unknown')
+                
+                for target_col in self.TARGET_ENCODING_COLS:
+                    encoding_map = self.target_encoding_maps[cat_col][target_col]
+                    global_mean = encoding_map['__global_mean__']
+                    
+                    feature_name = f'{cat_col}_target_{target_col.replace("_", "")}'
+                    df[feature_name] = cat_values.map(
+                        lambda x: encoding_map.get(x, global_mean)
+                    )
+        
+        return df
+    
     def scale_numerical_features(self, df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
         """
         Scale numerical features using StandardScaler.
@@ -227,12 +322,13 @@ class FootprintPreprocessor:
         
         return df
     
-    def fit_transform(self, X: pd.DataFrame) -> pd.DataFrame:
+    def fit_transform(self, X: pd.DataFrame, y: pd.DataFrame = None) -> pd.DataFrame:
         """
         Fit preprocessor on training data and transform.
         
         Args:
             X: Training features DataFrame
+            y: Training targets DataFrame (required for target encoding)
             
         Returns:
             Preprocessed features DataFrame
@@ -245,13 +341,19 @@ class FootprintPreprocessor:
         # 2. Create missing indicators
         X = self.create_missing_indicators(X)
         
-        # 3. Encode categorical features
+        # 3. Encode categorical features (label encoding)
         X = self.encode_categorical_features(X, fit=True)
         
-        # 4. Scale numerical features
+        # 4. Target encode categories (uses y to compute mean footprints per category)
+        if y is not None:
+            X = self.target_encode_categories(X, y, fit=True)
+        else:
+            print("[WARNING] No targets provided - skipping target encoding")
+        
+        # 5. Scale numerical features
         X = self.scale_numerical_features(X, fit=True)
         
-        # 5. Log-transform formula features (to match log-transformed targets)
+        # 6. Log-transform formula features (to match log-transformed targets)
         X = self.log_transform_formula_features(X, fit=True)
         
         self.is_fitted = True
@@ -280,13 +382,17 @@ class FootprintPreprocessor:
         # 2. Create missing indicators
         X = self.create_missing_indicators(X)
         
-        # 3. Encode categorical features
+        # 3. Encode categorical features (label encoding)
         X = self.encode_categorical_features(X, fit=False)
         
-        # 4. Scale numerical features
+        # 4. Target encode categories (using fitted maps)
+        if self.target_encoding_maps:
+            X = self.target_encode_categories(X, fit=False)
+        
+        # 5. Scale numerical features
         X = self.scale_numerical_features(X, fit=False)
         
-        # 5. Log-transform formula features (using fitted mins)
+        # 6. Log-transform formula features (using fitted mins)
         X = self.log_transform_formula_features(X, fit=False)
         
         print("[OK] Preprocessing complete")
@@ -307,6 +413,13 @@ class FootprintPreprocessor:
         'weight_x_natural',
     ]
     
+    # Target-encoded feature names (category × target)
+    TARGET_ENCODED_FEATURES = [
+        f'{cat}_target_{target.replace("_", "")}'
+        for cat in CATEGORICAL_COLUMNS
+        for target in ['carbon_material', 'carbon_transport', 'water_total']
+    ]
+    
     def get_feature_names(self, include_formula_features: bool = True) -> list:
         """
         Get list of all feature column names after preprocessing.
@@ -319,8 +432,11 @@ class FootprintPreprocessor:
         """
         features = []
         
-        # Encoded categorical features
+        # Encoded categorical features (label encoding)
         features.extend([f'{col}_encoded' for col in CATEGORICAL_COLUMNS])
+        
+        # Target-encoded categorical features (mean footprint per category)
+        features.extend(self.TARGET_ENCODED_FEATURES)
         
         # Numerical features
         features.extend(NUMERICAL_COLUMNS)
@@ -373,9 +489,9 @@ if __name__ == '__main__':
     X_train = add_formula_features(X_train, MATERIAL_COLUMNS, get_material_dataset_path())
     X_val = add_formula_features(X_val, MATERIAL_COLUMNS, get_material_dataset_path())
     
-    # Preprocess
+    # Preprocess (pass y_train for target encoding)
     preprocessor = FootprintPreprocessor()
-    X_train_processed = preprocessor.fit_transform(X_train)
+    X_train_processed = preprocessor.fit_transform(X_train, y_train)  # Pass targets for target encoding
     X_val_processed = preprocessor.transform(X_val)
     
     print(f"\nProcessed training shape: {X_train_processed.shape}")

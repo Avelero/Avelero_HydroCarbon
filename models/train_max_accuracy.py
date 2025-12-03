@@ -40,10 +40,10 @@ def train_baseline(args, logger):
     X_train = add_formula_features(X_train, MATERIAL_COLUMNS, material_dataset)
     X_val = add_formula_features(X_val, MATERIAL_COLUMNS, material_dataset)
     
-    # Step 3: Preprocess
+    # Step 3: Preprocess (pass y_train for target encoding)
     logger.info("Step 3/5: Preprocessing features...")
     preprocessor = FootprintPreprocessor()
-    X_train_processed = preprocessor.fit_transform(X_train)
+    X_train_processed = preprocessor.fit_transform(X_train, y_train)  # Pass targets for target encoding
     X_val_processed = preprocessor.transform(X_val)
     
     feature_cols = preprocessor.get_feature_names()
@@ -209,10 +209,10 @@ def train_with_augmentation(args, logger):
     X_train_aug = add_formula_features(X_train_aug, MATERIAL_COLUMNS, material_dataset)
     X_val = add_formula_features(X_val, MATERIAL_COLUMNS, material_dataset)
     
-    # Preprocess
+    # Preprocess (pass y_train for target encoding)
     logger.info("Preprocessing...")
     preprocessor = FootprintPreprocessor()
-    X_train_processed = preprocessor.fit_transform(X_train_aug)
+    X_train_processed = preprocessor.fit_transform(X_train_aug, y_train)  # Pass targets for target encoding
     X_val_processed = preprocessor.transform(X_val)
     
     feature_cols = preprocessor.get_feature_names()
