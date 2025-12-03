@@ -186,6 +186,24 @@ int parse_csv_line(const char *line, char fields[][MAX_FIELD_LENGTH], int max_fi
     return field_count;
 }
 
+// Helper to write a field, quoting if it contains commas
+int write_field(char *buffer, int offset, int max_len, const char *field, int add_comma) {
+    int needs_quote = (strchr(field, ',') != NULL);
+    if (needs_quote) {
+        if (add_comma) {
+            return snprintf(buffer + offset, max_len - offset, "\"%s\",", field);
+        } else {
+            return snprintf(buffer + offset, max_len - offset, "\"%s\"", field);
+        }
+    } else {
+        if (add_comma) {
+            return snprintf(buffer + offset, max_len - offset, "%s,", field);
+        } else {
+            return snprintf(buffer + offset, max_len - offset, "%s", field);
+        }
+    }
+}
+
 // Process CSV line and convert materials JSON to one-hot encoding
 void process_line(const char *input_line, char *output_line) {
     char fields[20][MAX_FIELD_LENGTH];
@@ -204,14 +222,14 @@ void process_line(const char *input_line, char *output_line) {
     char temp[MAX_LINE_LENGTH];
     int offset = 0;
     
-    // Add fields 0-4 (before materials)
+    // Add fields 0-4 (before materials) - quote if contains commas
     for (int i = 0; i < 5; i++) {
-        offset += snprintf(temp + offset, MAX_LINE_LENGTH - offset, "%s,", fields[i]);
+        offset += write_field(temp, offset, MAX_LINE_LENGTH, fields[i], 1);
     }
     
     // Add fields 6-11 (after materials)
     for (int i = 6; i < 12; i++) {
-        offset += snprintf(temp + offset, MAX_LINE_LENGTH - offset, "%s,", fields[i]);
+        offset += write_field(temp, offset, MAX_LINE_LENGTH, fields[i], 1);
     }
     
     // Add all material percentages

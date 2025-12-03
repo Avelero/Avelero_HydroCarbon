@@ -359,7 +359,10 @@ class FootprintPreprocessor:
         self.is_fitted = True
         print("[OK] Preprocessing complete")
         
-        return X
+        # Return only numeric feature columns (not original string columns)
+        feature_cols = self.get_feature_names(include_formula_features='formula_carbon_material' in X.columns)
+        available_cols = [c for c in feature_cols if c in X.columns]
+        return X[available_cols]
     
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         """
@@ -397,7 +400,10 @@ class FootprintPreprocessor:
         
         print("[OK] Preprocessing complete")
         
-        return X
+        # Return only numeric feature columns (not original string columns)
+        feature_cols = self.get_feature_names(include_formula_features='formula_carbon_material' in X.columns)
+        available_cols = [c for c in feature_cols if c in X.columns]
+        return X[available_cols]
     
     # Interaction feature names (must match create_interaction_features)
     INTERACTION_FEATURES = [
