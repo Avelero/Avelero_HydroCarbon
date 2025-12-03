@@ -36,7 +36,7 @@ This model predicts **4 environmental footprint metrics** for fashion products u
 
 ## Key Features
 
-### 🎯 Multi-Output with Physics Constraints
+### Multi-Output with Physics Constraints
 - **Single model** predicts all 4 targets simultaneously (vs 4 separate models)
 - **Custom objective function** enforces physical consistency:
   ```
@@ -52,13 +52,13 @@ This model predicts **4 environmental footprint metrics** for fashion products u
   - Learns from `category`, `gender` patterns to compensate for missing data
   - Handles core requirement: "predict footprints even with missing `total_distance_km`"
 
-### 🔧 Smart Missing Value Handling
+### Smart Missing Value Handling
 - **Hierarchical indicators**:
   - **Critical**: `weight_kg_missing`, `total_distance_km_missing`, `materials_missing` (formula-dependent)
   - **Optional**: `category_missing`, `gender_missing` (less critical with formula baseline)
 - Model learns patterns to compensate for missing values
 
-### ⚡ GPU Acceleration
+### GPU Acceleration
 - Optimized for NVIDIA GPUs using `tree_method='gpu_hist'`
 - **10x faster** training on 676K samples (5-10 min vs 30-60 min on CPU)
 
@@ -66,7 +66,7 @@ This model predicts **4 environmental footprint metrics** for fashion products u
 
 ## Quick Start
 
-### 📊 Maximum Accuracy Training (Recommended)
+### Maximum Accuracy Training (Recommended)
 
 **3-Phase automated pipeline** optimized for accuracy over cost:
 
@@ -121,7 +121,7 @@ python train_max_accuracy.py --sample-size 10000 --tree-method hist
 # Expected time: ~5 min
 ```
 
-### ⚡ Standard Training (Faster, Lower Accuracy)
+### Standard Training (Faster, Lower Accuracy)
 
 For quick experiments (500 rounds instead of 2000):
 
@@ -296,7 +296,7 @@ saved/max_accuracy/
 [100] train-avg_mae: 0.0452  val-avg_mae: 0.0489
 ...
 2025-12-03 14:15:23 - carbon_total | MAE: 0.0876 | R²: 0.9234
-2025-12-03 14:15:23 - ✓ All accuracy targets met!
+2025-12-03 14:15:23 - All accuracy targets met!
 ```
 
 ### Expected Performance
