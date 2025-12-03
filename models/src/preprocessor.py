@@ -23,13 +23,67 @@ class FootprintPreprocessor:
     1. Create missing value indicators
     2. Encode categorical features
     3. Scale numerical features
-    4. Formula features already added separately
+    4. Log-transform formula features (to match log-transformed targets)
     """
     
-    def __init__(self):
+    FORMULA_FEATURES = ['formula_carbon_material', 'formula_carbon_transport', 'formula_water_total']
+    
+    def __init__(self, log_transform_formula: bool = True):
+        """
+        Args:
+            log_transform_formula: If True, apply log1p to formula features.
+                                  Should match whether targets are log-transformed.
+        """
         self.categorical_encoders = {}
         self.numerical_scaler = StandardScaler()
+        self.log_transform_formula = log_transform_formula
+        self.formula_mins = {}  # Store mins for log transform
         self.is_fitted = False
+    
+    def log_transform_formula_features(self, df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
+        """
+        Apply log transformation to formula features.
+        
+        CRITICAL: This ensures formula features are in the same space as log-transformed targets.
+        Without this, a 1.0 correlation in original space becomes ~0.53 in log space!
+        
+        Transform: log1p(x - min + 1) to match trainer._scale_targets()
+        
+        Args:
+            df: DataFrame with formula features
+            fit: If True, compute and store min values
+            
+        Returns:
+            DataFrame with log-transformed formula features
+        """
+        if not self.log_transform_formula:
+            return df
+        
+        df = df.copy()
+        
+        for col in self.FORMULA_FEATURES:
+            if col not in df.columns:
+                continue
+            
+            if fit:
+                # Store min value for this feature
+                self.formula_mins[col] = df[col].min()
+            
+            min_val = self.formula_mins.get(col, 0)
+            
+            # Shift to make all values positive (same as trainer._scale_targets)
+            shifted = df[col] - min_val + 1.0
+            
+            # Apply log1p transformation (same as trainer)
+            df[col] = np.log1p(shifted)
+        
+        if fit:
+            print(f"[LOG TRANSFORM] Formula features log-transformed (matching target space)")
+            for col in self.FORMULA_FEATURES:
+                if col in df.columns:
+                    print(f"  {col}: min={self.formula_mins.get(col, 'N/A'):.4f}")
+        
+        return df
         
     def create_missing_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -138,6 +192,9 @@ class FootprintPreprocessor:
         # 3. Scale numerical features
         X = self.scale_numerical_features(X, fit=True)
         
+        # 4. Log-transform formula features (to match log-transformed targets)
+        X = self.log_transform_formula_features(X, fit=True)
+        
         self.is_fitted = True
         print("[OK] Preprocessing complete")
         
@@ -166,6 +223,9 @@ class FootprintPreprocessor:
         
         # 3. Scale numerical features
         X = self.scale_numerical_features(X, fit=False)
+        
+        # 4. Log-transform formula features (using fitted mins)
+        X = self.log_transform_formula_features(X, fit=False)
         
         print("[OK] Preprocessing complete")
         
