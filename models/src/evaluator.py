@@ -132,15 +132,23 @@ class ModelEvaluator:
                     # Randomly select samples to corrupt
                     corrupt_idx = np.random.choice(n_samples, n_corrupt, replace=False)
                     
-                    # Randomly corrupt weight, distance, or materials
-                    for idx in corrupt_idx:
-                        choice = np.random.choice(['weight', 'distance', 'materials'])
-                        if choice == 'weight':
-                            X_corrupted.loc[X_corrupted.index[idx], 'weight_kg'] = np.nan
-                        elif choice == 'distance':
-                            X_corrupted.loc[X_corrupted.index[idx], 'total_distance_km'] = np.nan
-                        else:  # materials
-                            X_corrupted.loc[X_corrupted.index[idx], MATERIAL_COLUMNS] = 0
+                    # Randomly assign corruption type to each sample (VECTORIZED)
+                    corruption_types = np.random.choice(['weight', 'distance', 'materials'], size=n_corrupt)
+                    
+                    # Get actual DataFrame indices
+                    df_indices = X_corrupted.index[corrupt_idx]
+                    
+                    # Apply corruptions in bulk (MUCH faster than row-by-row)
+                    weight_mask = corruption_types == 'weight'
+                    distance_mask = corruption_types == 'distance'
+                    materials_mask = corruption_types == 'materials'
+                    
+                    if weight_mask.any():
+                        X_corrupted.loc[df_indices[weight_mask], 'weight_kg'] = np.nan
+                    if distance_mask.any():
+                        X_corrupted.loc[df_indices[distance_mask], 'total_distance_km'] = np.nan
+                    if materials_mask.any():
+                        X_corrupted.loc[df_indices[materials_mask], MATERIAL_COLUMNS] = 0
                 
                 # Add formula features (will be NaN where data missing)
                 X_corrupted = add_formula_features(
