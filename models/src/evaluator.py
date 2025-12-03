@@ -111,8 +111,8 @@ class ModelEvaluator:
         self.logger.info("MISSING VALUE ROBUSTNESS TESTING")
         self.logger.info("="*80)
         
-        from .data_loader import MATERIAL_COLUMNS
-        from .formula_features import add_formula_features, get_material_dataset_path
+        from .data_loader import MATERIAL_COLUMNS, get_material_dataset_path
+        from .formula_features import add_formula_features
         
         results = []
         
