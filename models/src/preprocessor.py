@@ -10,9 +10,86 @@ import numpy as np
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 import joblib
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Dict
 
 from .data_loader import CATEGORICAL_COLUMNS, NUMERICAL_COLUMNS, MATERIAL_COLUMNS
+
+
+# Material emission factors (hardcoded to avoid file dependency issues)
+# Source: material_dataset_final.csv
+MATERIAL_CARBON_FACTORS = {
+    'acrylic': 5.13,
+    'cashmere': 14.0,
+    'cotton_conventional': 0.936584333333333,
+    'cotton_organic': 0.31629646,
+    'cotton_recycled': 0.468292166666667,
+    'coated_fabric_pu': 4.5,
+    'down_feather': 22.0,
+    'down_synthetic': 7.5,
+    'elastane': 5.5,
+    'hemp': 0.8,
+    'jute': 0.45,
+    'leather_bovine': 17.0,
+    'leather_ovine': 20.0,
+    'linen_flax': 0.9,
+    'lyocell_tencel': 1.0,
+    'modal': 1.5,
+    'polyamide_6': 6.5,
+    'polyamide_66': 7.2,
+    'polyamide_recycled': 3.25,
+    'polyester_recycled': 1.5,
+    'polyester_virgin': 5.5,
+    'polypropylene': 3.5,
+    'rubber_natural': 2.5,
+    'rubber_synthetic': 4.0,
+    'silk': 15.0,
+    'viscose_generic': 3.0,
+    'viscose_sustainable': 1.5,
+    'wool_generic': 20.0,
+    'wool_merino': 22.0,
+    'wool_recycled': 5.0,
+    'spandex': 5.5,
+    'nylon': 6.8,
+    'rayon': 3.0,
+    'bamboo': 2.5,
+}
+
+MATERIAL_WATER_FACTORS = {
+    'acrylic': 200,
+    'cashmere': 34160,
+    'cotton_conventional': 9113,
+    'cotton_organic': 7837,
+    'cotton_recycled': 4556,
+    'coated_fabric_pu': 100,
+    'down_feather': 500,
+    'down_synthetic': 150,
+    'elastane': 300,
+    'hemp': 2500,
+    'jute': 2000,
+    'leather_bovine': 17000,
+    'leather_ovine': 15000,
+    'linen_flax': 2500,
+    'lyocell_tencel': 1500,
+    'modal': 2000,
+    'polyamide_6': 185,
+    'polyamide_66': 185,
+    'polyamide_recycled': 92,
+    'polyester_recycled': 30,
+    'polyester_virgin': 60,
+    'polypropylene': 50,
+    'rubber_natural': 1500,
+    'rubber_synthetic': 100,
+    'silk': 10000,
+    'viscose_generic': 3000,
+    'viscose_sustainable': 1500,
+    'wool_generic': 15000,
+    'wool_merino': 17000,
+    'wool_recycled': 5000,
+    'spandex': 300,
+    'nylon': 185,
+    'rayon': 3000,
+    'bamboo': 2500,
+}
 
 
 class FootprintPreprocessor:
@@ -142,7 +219,56 @@ class FootprintPreprocessor:
         df['weight_x_synthetic'] = df['weight_kg'].fillna(0) * df['synthetic_material_pct']
         df['weight_x_natural'] = df['weight_kg'].fillna(0) * df['natural_material_pct']
         
-        print(f"[INTERACTION] Created {10} interaction features")
+        # 6. CRITICAL: Weighted material emission factors
+        # These give the model the information about material carbon/water intensity
+        # WITHOUT computing the full formula (which would cause data leakage)
+        df = self._add_weighted_material_factors(df)
+        
+        print(f"[INTERACTION] Created {10 + 4} interaction features (including weighted emission factors)")
+        
+        return df
+    
+    def _add_weighted_material_factors(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add weighted material emission factor features.
+        
+        These features capture the "carbon intensity" and "water intensity" of the
+        material composition WITHOUT multiplying by weight (which would be data leakage).
+        
+        Features created:
+        - material_carbon_intensity: Σ(material_i% × carbon_factor_i) - carbon factor per kg of material
+        - material_water_intensity: Σ(material_i% × water_factor_i) - water factor per kg of material
+        - weight_x_carbon_intensity: weight × carbon_intensity - key predictor for carbon_material
+        - weight_x_water_intensity: weight × water_intensity - key predictor for water_total
+        
+        This gives the model the information it needs to learn the relationship
+        between materials and footprints without directly computing the target.
+        """
+        # Calculate weighted carbon intensity (carbon factor per kg of the material mix)
+        carbon_intensity = np.zeros(len(df))
+        water_intensity = np.zeros(len(df))
+        
+        for material_col in MATERIAL_COLUMNS:
+            if material_col in df.columns:
+                material_pct = df[material_col].fillna(0).values
+                
+                # Get emission factors (default to average if unknown material)
+                carbon_factor = MATERIAL_CARBON_FACTORS.get(material_col, 3.0)  # Default ~3 kgCO2e/kg
+                water_factor = MATERIAL_WATER_FACTORS.get(material_col, 3000)  # Default ~3000 L/kg
+                
+                carbon_intensity += material_pct * carbon_factor
+                water_intensity += material_pct * water_factor
+        
+        # Store as features
+        df['material_carbon_intensity'] = carbon_intensity
+        df['material_water_intensity'] = water_intensity
+        
+        # Weight × intensity interactions (key predictors!)
+        # These directly relate to the target formulas:
+        # carbon_material ≈ weight × material_carbon_intensity
+        # water_total ≈ weight × material_water_intensity
+        df['weight_x_carbon_intensity'] = df['weight_kg'].fillna(0) * carbon_intensity
+        df['weight_x_water_intensity'] = df['weight_kg'].fillna(0) * water_intensity
         
         return df
         
@@ -469,6 +595,11 @@ class FootprintPreprocessor:
         'weight_x_high_carbon',
         'weight_x_synthetic',
         'weight_x_natural',
+        # Weighted material emission factor features (CRITICAL for prediction)
+        'material_carbon_intensity',
+        'material_water_intensity',
+        'weight_x_carbon_intensity',
+        'weight_x_water_intensity',
     ]
     
     # Target-encoded feature names (category × target)
