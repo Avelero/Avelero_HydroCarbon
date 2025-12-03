@@ -85,6 +85,11 @@ class FootprintModelTrainer:
         self.training_history = {}
         self.logger = setup_logger('trainer')
         
+        # Target scaling parameters (fitted during training)
+        self.target_means = None
+        self.target_stds = None
+        self.target_columns = ['carbon_material', 'carbon_transport', 'carbon_total', 'water_total']
+        
         set_random_seed(random_state)
 
     def _resolve_device(self) -> str:
@@ -120,6 +125,40 @@ class FootprintModelTrainer:
                 exc
             )
             return 'cpu'
+
+    def _scale_targets(self, y: pd.DataFrame, fit: bool = False) -> np.ndarray:
+        """
+        Scale targets to zero mean and unit variance.
+        
+        Args:
+            y: Target DataFrame with 4 columns
+            fit: If True, compute and store scaling parameters
+            
+        Returns:
+            Scaled targets as numpy array
+        """
+        if fit:
+            self.target_means = y.mean().values
+            self.target_stds = y.std().values
+            # Prevent division by zero
+            self.target_stds = np.where(self.target_stds == 0, 1.0, self.target_stds)
+            self.logger.info(f"Target means: {self.target_means}")
+            self.logger.info(f"Target stds: {self.target_stds}")
+        
+        scaled = (y.values - self.target_means) / self.target_stds
+        return scaled
+
+    def _unscale_targets(self, y_scaled: np.ndarray) -> np.ndarray:
+        """
+        Unscale targets back to original scale.
+        
+        Args:
+            y_scaled: Scaled predictions (n_samples, 4)
+            
+        Returns:
+            Unscaled predictions
+        """
+        return y_scaled * self.target_stds + self.target_means
     
     def physics_constrained_objective(
         self,
@@ -221,10 +260,14 @@ class FootprintModelTrainer:
         self.logger.info(f"Tree method: {self.tree_method}, Device: {self.device}")
         self.logger.info(f"Physics constraint weight: {self.lambda_weight}")
         
-        # Prepare data for XGBoost
+        # Scale targets to normalize gradients across different scales
+        self.logger.info("Scaling targets for training...")
+        y_train_scaled = self._scale_targets(y_train, fit=True)
+        y_val_scaled = self._scale_targets(y_val, fit=False)
+        
         # Flatten targets to (n_samples * 4,) for multi-output
-        y_train_flat = y_train.values.flatten()
-        y_val_flat = y_val.values.flatten()
+        y_train_flat = y_train_scaled.flatten()
+        y_val_flat = y_val_scaled.flatten()
         
         dtrain = xgb.DMatrix(X_train, label=y_train_flat)
         dval = xgb.DMatrix(X_val, label=y_val_flat)
@@ -288,7 +331,10 @@ class FootprintModelTrainer:
         
         # Reshape to (n_samples, 4)
         n_samples = len(X)
-        preds = preds_flat.reshape(n_samples, 4)
+        preds_scaled = preds_flat.reshape(n_samples, 4)
+        
+        # Unscale predictions back to original scale
+        preds = self._unscale_targets(preds_scaled)
         
         return pd.DataFrame(
             preds,
@@ -356,7 +402,7 @@ class FootprintModelTrainer:
         model_path = str(save_dir / 'xgb_model.json')
         self.model.save_model(model_path)
         
-        # Save trainer config
+        # Save trainer config (including target scaling parameters)
         config = {
             'lambda_weight': self.lambda_weight,
             'n_estimators': self.n_estimators,
@@ -366,7 +412,9 @@ class FootprintModelTrainer:
             'colsample_bytree': self.colsample_bytree,
             'tree_method': self.tree_method,
             'random_state': self.random_state,
-            'training_history': self.training_history
+            'training_history': self.training_history,
+            'target_means': self.target_means,
+            'target_stds': self.target_stds
         }
         config_path = str(Path(path) / 'trainer_config.pkl')
         joblib.dump(config, config_path)
@@ -397,6 +445,10 @@ class FootprintModelTrainer:
         trainer.model = xgb.Booster()
         trainer.model.load_model(model_path)
         trainer.training_history = config.get('training_history', {})
+        
+        # Load target scaling parameters
+        trainer.target_means = config.get('target_means')
+        trainer.target_stds = config.get('target_stds')
         
         trainer.logger.info(f"Model loaded from {path}")
         return trainer
