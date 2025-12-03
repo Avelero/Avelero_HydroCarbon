@@ -318,15 +318,13 @@ class FootprintPreprocessor:
                 self.categorical_encoders[col] = LabelEncoder()
                 df[f'{col}_encoded'] = self.categorical_encoders[col].fit_transform(df[col])
             else:
-                # Transform, handling unseen categories
-                def safe_transform(value):
-                    if value in self.categorical_encoders[col].classes_:
-                        return self.categorical_encoders[col].transform([value])[0]
-                    else:
-                        # Unknown category -> encode as -1
-                        return -1
+                # Transform using vectorized mapping (much faster than apply)
+                # Create a mapping dict from classes to encoded values
+                classes = self.categorical_encoders[col].classes_
+                class_to_idx = {cls: idx for idx, cls in enumerate(classes)}
                 
-                df[f'{col}_encoded'] = df[col].apply(safe_transform)
+                # Map values, defaulting to -1 for unknown categories
+                df[f'{col}_encoded'] = df[col].map(class_to_idx).fillna(-1).astype(int)
         
         return df
     
@@ -458,9 +456,8 @@ class FootprintPreprocessor:
                     global_mean = encoding_map['__global_mean__']
                     
                     feature_name = f'{cat_col}_target_{target_col.replace("_", "")}'
-                    df[feature_name] = cat_values.map(
-                        lambda x: encoding_map.get(x, global_mean)
-                    )
+                    # Use vectorized .map() with default value (faster than lambda)
+                    df[feature_name] = cat_values.map(encoding_map).fillna(global_mean)
         
         return df
     
