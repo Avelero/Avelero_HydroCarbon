@@ -149,10 +149,8 @@ class ModelEvaluator:
                     get_material_dataset_path()
                 )
                 
-                # Preprocess
-                X_processed = preprocessor.transform(X_corrupted)
-                feature_cols = preprocessor.get_feature_names()
-                X_final = X_processed[feature_cols]
+                # Preprocess - transform() returns only the available feature columns
+                X_final = preprocessor.transform(X_corrupted)
                 
                 # Predict
                 preds = trainer.predict(X_final)
