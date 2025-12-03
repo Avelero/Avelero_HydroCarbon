@@ -100,7 +100,8 @@ def load_data(
 
 def get_material_dataset_path():
     """Get path to material emission factors dataset"""
-    return '/home/tr4moryp/Projects/bulk_product_generator/data/data_calculations/input/material_dataset_final.csv'
+    base_dir = Path(__file__).resolve().parent.parent.parent  # models/src -> models -> bulk_product_generator
+    return base_dir / 'data' / 'data_calculations' / 'input' / 'material_dataset_final.csv'
 
 
 if __name__ == '__main__':
