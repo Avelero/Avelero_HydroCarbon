@@ -20,9 +20,11 @@ BASELINE_CONFIG = {
     'device': 'cuda',                  # GPU acceleration (XGBoost 2.0+ syntax)
     'early_stopping_rounds': 100,      # More patience (vs 50)
     'random_state': 42,
-    # GPU optimization - use more VRAM for speed
-    'max_bin': 512,                    # More bins = better accuracy, uses more VRAM (default 256)
-    'max_cached_hist_node': 65536,     # Cache more histogram nodes in GPU memory
+    # GPU optimization - maximize VRAM usage for Tesla T4 (15GB)
+    'max_bin': 2048,                   # Much more bins (default 256) - uses ~8x more VRAM
+    'grow_policy': 'lossguide',        # Loss-guided growth uses more VRAM but faster
+    'max_leaves': 512,                 # More leaves per tree (needs grow_policy=lossguide)
+    'sampling_method': 'gradient_based',  # GPU-accelerated sampling
 }
 
 # Robustness Training (With Artificial Missing Values) - Maximum Accuracy
@@ -41,9 +43,11 @@ ROBUSTNESS_CONFIG = {
     'device': 'cuda',                  # GPU acceleration (XGBoost 2.0+ syntax)
     'early_stopping_rounds': 150,      # Even more patience
     'random_state': 42,
-    # GPU optimization - use more VRAM for speed
-    'max_bin': 512,                    # More bins = better accuracy, uses more VRAM
-    'max_cached_hist_node': 65536,     # Cache more histogram nodes in GPU memory
+    # GPU optimization - maximize VRAM usage for Tesla T4 (15GB)
+    'max_bin': 2048,                   # Much more bins - uses more VRAM
+    'grow_policy': 'lossguide',        # Loss-guided growth
+    'max_leaves': 512,                 # More leaves per tree
+    'sampling_method': 'gradient_based',  # GPU-accelerated sampling
 }
 
 # Missing Value Augmentation Settings

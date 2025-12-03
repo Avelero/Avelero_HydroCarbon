@@ -84,7 +84,9 @@ class FootprintModelTrainer:
         
         # GPU optimization params (passed via **kwargs)
         self.max_bin = kwargs.get('max_bin', 256)  # More bins = more VRAM usage, better accuracy
-        self.max_cached_hist_node = kwargs.get('max_cached_hist_node', 65536)  # Cache histograms in GPU
+        self.grow_policy = kwargs.get('grow_policy', 'depthwise')  # 'lossguide' for more VRAM usage
+        self.max_leaves = kwargs.get('max_leaves', 0)  # 0 = unlimited (controlled by max_depth)
+        self.sampling_method = kwargs.get('sampling_method', 'uniform')  # 'gradient_based' for GPU
         
         self.model = None
         self.training_history = {}
@@ -334,9 +336,11 @@ class FootprintModelTrainer:
             'seed': self.random_state,
             'num_target': 4,  # 4 simultaneous outputs
             'disable_default_eval_metric': 1,  # Use custom metric
-            # GPU optimization - use more VRAM for speed
-            'max_bin': self.max_bin,  # More bins = better accuracy (default 256, we use 512)
-            'max_cached_hist_node': self.max_cached_hist_node,  # Cache histograms in GPU memory
+            # GPU optimization - use more VRAM for speed (Tesla T4 has 15GB)
+            'max_bin': self.max_bin,  # More bins = better splits (2048 uses ~8x more VRAM than 256)
+            'grow_policy': self.grow_policy,  # 'lossguide' = leaf-wise growth, more memory
+            'max_leaves': self.max_leaves,  # Max leaves per tree (only with lossguide)
+            'sampling_method': self.sampling_method,  # 'gradient_based' for GPU-accelerated sampling
         }
         
         # Training with custom objective (or built-in if lambda_weight=0)
