@@ -36,7 +36,9 @@ FEATURE_COLUMNS = CATEGORICAL_COLUMNS + NUMERICAL_COLUMNS + MATERIAL_COLUMNS
 def load_data(
     train_path: str = None,
     val_path: str = None,
-    sample_size: int = None
+    sample_size: int = None,
+    remove_outliers: bool = True,
+    outlier_percentile: float = 0.999
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Load training and validation data from CSV files.
@@ -45,6 +47,8 @@ def load_data(
         train_path: Path to training CSV (auto-detects if None)
         val_path: Path to validation CSV (auto-detects if None)
         sample_size: If set, load only this many rows (for quick testing)
+        remove_outliers: If True, remove samples with extreme target values
+        outlier_percentile: Percentile threshold for outlier removal (default 99.9%)
         
     Returns:
         X_train, y_train, X_val, y_val
@@ -84,6 +88,40 @@ def load_data(
     
     X_val = val_df[FEATURE_COLUMNS].copy()
     y_val = val_df[TARGET_COLUMNS].copy()
+    
+    # Remove outliers (extreme values that are likely data errors)
+    if remove_outliers:
+        n_train_before = len(X_train)
+        n_val_before = len(X_val)
+        
+        # Calculate thresholds from training data
+        thresholds = {}
+        for col in TARGET_COLUMNS:
+            thresholds[col] = y_train[col].quantile(outlier_percentile)
+        
+        # Create mask for valid samples (non-negative and below threshold)
+        train_mask = pd.Series(True, index=y_train.index)
+        val_mask = pd.Series(True, index=y_val.index)
+        
+        for col in TARGET_COLUMNS:
+            train_mask &= (y_train[col] >= 0) & (y_train[col] <= thresholds[col])
+            val_mask &= (y_val[col] >= 0) & (y_val[col] <= thresholds[col])
+        
+        # Apply masks
+        X_train = X_train[train_mask].reset_index(drop=True)
+        y_train = y_train[train_mask].reset_index(drop=True)
+        X_val = X_val[val_mask].reset_index(drop=True)
+        y_val = y_val[val_mask].reset_index(drop=True)
+        
+        n_train_removed = n_train_before - len(X_train)
+        n_val_removed = n_val_before - len(X_val)
+        
+        print(f"\n[OUTLIER REMOVAL] Removed samples outside [0, {outlier_percentile*100:.1f}th percentile]:")
+        print(f"  Training: {n_train_removed:,} removed ({100*n_train_removed/n_train_before:.2f}%), {len(X_train):,} remaining")
+        print(f"  Validation: {n_val_removed:,} removed ({100*n_val_removed/n_val_before:.2f}%), {len(X_val):,} remaining")
+        print(f"  Thresholds: carbon_material≤{thresholds['carbon_material']:.1f}, "
+              f"carbon_transport≤{thresholds['carbon_transport']:.2f}, "
+              f"water_total≤{thresholds['water_total']:.0f}")
     
     # Data validation
     print(f"\n[OK] Data loaded successfully")
