@@ -45,7 +45,8 @@ class FootprintModelTrainer:
         tree_method: str = 'hist',      # Histogram-based (XGBoost 2.0+)
         device: str = 'cuda',           # 'cuda' for GPU, 'cpu' for CPU (XGBoost 2.0+)
         early_stopping_rounds: int = 50,
-        random_state: int = 42
+        random_state: int = 42,
+        **kwargs  # Extra params like max_bin, max_cached_hist_node for GPU optimization
     ):
         """
         Initialize trainer with hyperparameters.
@@ -80,6 +81,10 @@ class FootprintModelTrainer:
         self.device = device
         self.early_stopping_rounds = early_stopping_rounds
         self.random_state = random_state
+        
+        # GPU optimization params (passed via **kwargs)
+        self.max_bin = kwargs.get('max_bin', 256)  # More bins = more VRAM usage, better accuracy
+        self.max_cached_hist_node = kwargs.get('max_cached_hist_node', 65536)  # Cache histograms in GPU
         
         self.model = None
         self.training_history = {}
@@ -328,7 +333,10 @@ class FootprintModelTrainer:
             'device': self.device,  # 'cuda' for GPU, 'cpu' for CPU
             'seed': self.random_state,
             'num_target': 4,  # 4 simultaneous outputs
-            'disable_default_eval_metric': 1  # Use custom metric
+            'disable_default_eval_metric': 1,  # Use custom metric
+            # GPU optimization - use more VRAM for speed
+            'max_bin': self.max_bin,  # More bins = better accuracy (default 256, we use 512)
+            'max_cached_hist_node': self.max_cached_hist_node,  # Cache histograms in GPU memory
         }
         
         # Training with custom objective (or built-in if lambda_weight=0)

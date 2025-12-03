@@ -19,7 +19,10 @@ BASELINE_CONFIG = {
     'tree_method': 'hist',             # Histogram-based (XGBoost 2.0+)
     'device': 'cuda',                  # GPU acceleration (XGBoost 2.0+ syntax)
     'early_stopping_rounds': 100,      # More patience (vs 50)
-    'random_state': 42
+    'random_state': 42,
+    # GPU optimization - use more VRAM for speed
+    'max_bin': 512,                    # More bins = better accuracy, uses more VRAM (default 256)
+    'max_cached_hist_node': 65536,     # Cache more histogram nodes in GPU memory
 }
 
 # Robustness Training (With Artificial Missing Values) - Maximum Accuracy
@@ -37,7 +40,10 @@ ROBUSTNESS_CONFIG = {
     'tree_method': 'hist',             # Histogram-based (XGBoost 2.0+)
     'device': 'cuda',                  # GPU acceleration (XGBoost 2.0+ syntax)
     'early_stopping_rounds': 150,      # Even more patience
-    'random_state': 42
+    'random_state': 42,
+    # GPU optimization - use more VRAM for speed
+    'max_bin': 512,                    # More bins = better accuracy, uses more VRAM
+    'max_cached_hist_node': 65536,     # Cache more histogram nodes in GPU memory
 }
 
 # Missing Value Augmentation Settings
