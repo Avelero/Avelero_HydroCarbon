@@ -16,7 +16,8 @@ BASELINE_CONFIG = {
     'gamma': 0,                        # No regularization penalty initially
     'reg_alpha': 0,                    # L1 regularization (tune if needed)
     'reg_lambda': 1,                   # L2 regularization
-    'tree_method': 'gpu_hist',         # GPU acceleration
+    'tree_method': 'hist',             # Histogram-based (XGBoost 2.0+)
+    'device': 'cuda',                  # GPU acceleration (XGBoost 2.0+ syntax)
     'early_stopping_rounds': 100,      # More patience (vs 50)
     'random_state': 42
 }
@@ -33,7 +34,8 @@ ROBUSTNESS_CONFIG = {
     'gamma': 0.1,                      # Small regularization
     'reg_alpha': 0.1,
     'reg_lambda': 1.5,
-    'tree_method': 'gpu_hist',
+    'tree_method': 'hist',             # Histogram-based (XGBoost 2.0+)
+    'device': 'cuda',                  # GPU acceleration (XGBoost 2.0+ syntax)
     'early_stopping_rounds': 150,      # Even more patience
     'random_state': 42
 }

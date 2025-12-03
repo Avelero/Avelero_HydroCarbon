@@ -42,7 +42,8 @@ class FootprintModelTrainer:
         gamma: float = 0,
         reg_alpha: float = 0,
         reg_lambda: float = 1,
-        tree_method: str = 'gpu_hist',  # Use GPU by default
+        tree_method: str = 'hist',      # Histogram-based (XGBoost 2.0+)
+        device: str = 'cuda',           # 'cuda' for GPU, 'cpu' for CPU (XGBoost 2.0+)
         early_stopping_rounds: int = 50,
         random_state: int = 42
     ):
@@ -60,7 +61,8 @@ class FootprintModelTrainer:
             gamma: Minimum loss reduction for split
             reg_alpha: L1 regularization
             reg_lambda: L2 regularization
-            tree_method: 'gpu_hist' for GPU, 'hist' for CPU
+            tree_method: 'hist' for histogram-based (recommended)
+            device: 'cuda' for GPU, 'cpu' for CPU (XGBoost 2.0+ syntax)
             early_stopping_rounds: Early stopping patience
             random_state: Random seed
         """
@@ -75,6 +77,7 @@ class FootprintModelTrainer:
         self.reg_alpha = reg_alpha
         self.reg_lambda = reg_lambda
         self.tree_method = tree_method
+        self.device = device
         self.early_stopping_rounds = early_stopping_rounds
         self.random_state = random_state
         
@@ -83,6 +86,40 @@ class FootprintModelTrainer:
         self.logger = setup_logger('trainer')
         
         set_random_seed(random_state)
+
+    def _resolve_device(self) -> str:
+        """
+        Validate requested device and fall back to CPU if GPU is unavailable.
+        XGBoost 2.0+ uses 'device' parameter instead of 'gpu_hist'.
+        """
+        if self.device != 'cuda':
+            return self.device
+
+        # Run a tiny one-iteration check to verify GPU support
+        try:
+            test_X = np.array([[0.0], [1.0]], dtype=np.float32)
+            test_y = np.array([0.0, 1.0], dtype=np.float32)
+            test_dmatrix = xgb.DMatrix(test_X, label=test_y)
+            xgb.train(
+                {
+                    'objective': 'reg:squarederror',
+                    'tree_method': 'hist',
+                    'device': 'cuda',
+                    'max_depth': 1,
+                    'eta': 1,
+                    'verbosity': 0
+                },
+                test_dmatrix,
+                num_boost_round=1
+            )
+            self.logger.info("GPU (CUDA) device validated successfully.")
+            return 'cuda'
+        except xgb.core.XGBoostError as exc:
+            self.logger.warning(
+                "CUDA device not available. Falling back to CPU. Error: %s",
+                exc
+            )
+            return 'cpu'
     
     def physics_constrained_objective(
         self,
@@ -173,12 +210,15 @@ class FootprintModelTrainer:
             y_val: Validation targets (4 columns)
             verbose: Print training progress
         """
+        # Validate GPU availability and fall back to CPU if needed
+        self.device = self._resolve_device()
+
         self.logger.info("Starting multi-output XGBoost training with physics constraints...")
         self.logger.info(f"Training samples: {len(X_train):,}")
         self.logger.info(f"Validation samples: {len(X_val):,}")
         self.logger.info(f"Features: {X_train.shape[1]}")
         self.logger.info(f"Targets: {y_train.shape[1]}")
-        self.logger.info(f"Tree method: {self.tree_method} (GPU={'enabled' if 'gpu' in self.tree_method else 'disabled'})")
+        self.logger.info(f"Tree method: {self.tree_method}, Device: {self.device}")
         self.logger.info(f"Physics constraint weight: {self.lambda_weight}")
         
         # Prepare data for XGBoost
@@ -189,7 +229,7 @@ class FootprintModelTrainer:
         dtrain = xgb.DMatrix(X_train, label=y_train_flat)
         dval = xgb.DMatrix(X_val, label=y_val_flat)
         
-        # XGBoost parameters
+        # XGBoost parameters (XGBoost 2.0+ syntax)
         params = {
             'max_depth': self.max_depth,
             'eta': self.learning_rate,  # learning_rate
@@ -200,6 +240,7 @@ class FootprintModelTrainer:
             'alpha': self.reg_alpha,  # L1 regularization
             'lambda': self.reg_lambda,  # L2 regularization
             'tree_method': self.tree_method,
+            'device': self.device,  # 'cuda' for GPU, 'cpu' for CPU
             'seed': self.random_state,
             'num_target': 4,  # 4 simultaneous outputs
             'disable_default_eval_metric': 1  # Use custom metric
