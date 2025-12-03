@@ -152,11 +152,11 @@ def check_if_retraining_needed(baseline_metrics, robustness_results, logger):
             robustness_ok = False
     
     if not baseline_ok:
-        logger.info("\n⚠️  BASELINE model did not meet accuracy targets")
+        logger.info("\n[WARNING] BASELINE model did not meet accuracy targets")
         logger.info("    Recommendation: Tune hyperparameters or increase n_estimators")
         return True
     elif not robustness_ok:
-        logger.info("\n⚠️  ROBUSTNESS is below targets with missing values")
+        logger.info("\n[WARNING] ROBUSTNESS is below targets with missing values")
         logger.info("    Recommendation: Retrain with augmented data (artificial missing values)")
         return True
     else:

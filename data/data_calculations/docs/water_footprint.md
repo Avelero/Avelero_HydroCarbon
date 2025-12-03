@@ -77,8 +77,8 @@ Values in `material_dataset_final.csv` column 10: `water_footprint_liters`
 ## Limitations
 
 This calculation considers:
-- ✅ Blue water (surface and groundwater)
-- ✅ Green water (rainwater stored in soil)
-- ❌ Grey water (water needed to dilute pollutants) - not fully accounted
+- [x] Blue water (surface and groundwater)
+- [x] Green water (rainwater stored in soil)
+- [ ] Grey water (water needed to dilute pollutants) - not fully accounted
 
 Transport water footprint is not included as it's typically negligible compared to material production.
