@@ -38,7 +38,12 @@ class FootprintModelTrainer:
         learning_rate: float = 0.05,
         subsample: float = 0.8,
         colsample_bytree: float = 0.8,
+        min_child_weight: int = 1,
+        gamma: float = 0,
+        reg_alpha: float = 0,
+        reg_lambda: float = 1,
         tree_method: str = 'gpu_hist',  # Use GPU by default
+        early_stopping_rounds: int = 50,
         random_state: int = 42
     ):
         """
@@ -51,7 +56,12 @@ class FootprintModelTrainer:
             learning_rate: Learning rate (eta)
             subsample: Subsample ratio of training instances
             colsample_bytree: Subsample ratio of columns
+            min_child_weight: Minimum sum of instance weight in a child
+            gamma: Minimum loss reduction for split
+            reg_alpha: L1 regularization
+            reg_lambda: L2 regularization
             tree_method: 'gpu_hist' for GPU, 'hist' for CPU
+            early_stopping_rounds: Early stopping patience
             random_state: Random seed
         """
         self.lambda_weight = lambda_weight
@@ -60,7 +70,12 @@ class FootprintModelTrainer:
         self.learning_rate = learning_rate
         self.subsample = subsample
         self.colsample_bytree = colsample_bytree
+        self.min_child_weight = min_child_weight
+        self.gamma = gamma
+        self.reg_alpha = reg_alpha
+        self.reg_lambda = reg_lambda
         self.tree_method = tree_method
+        self.early_stopping_rounds = early_stopping_rounds
         self.random_state = random_state
         
         self.model = None
@@ -146,7 +161,6 @@ class FootprintModelTrainer:
         y_train: pd.DataFrame,
         X_val: pd.DataFrame,
         y_val: pd.DataFrame,
-        early_stopping_rounds: int = 50,
         verbose: bool = True
     ):
         """
@@ -157,7 +171,6 @@ class FootprintModelTrainer:
             y_train: Training targets (4 columns)
             X_val: Validation features
             y_val: Validation targets (4 columns)
-            early_stopping_rounds: Early stopping patience
             verbose: Print training progress
         """
         self.logger.info("Starting multi-output XGBoost training with physics constraints...")
@@ -182,6 +195,10 @@ class FootprintModelTrainer:
             'eta': self.learning_rate,  # learning_rate
             'subsample': self.subsample,
             'colsample_bytree': self.colsample_bytree,
+            'min_child_weight': self.min_child_weight,
+            'gamma': self.gamma,
+            'alpha': self.reg_alpha,  # L1 regularization
+            'lambda': self.reg_lambda,  # L2 regularization
             'tree_method': self.tree_method,
             'seed': self.random_state,
             'num_target': 4,  # 4 simultaneous outputs
@@ -201,7 +218,7 @@ class FootprintModelTrainer:
             custom_metric=self.custom_eval_metric,
             evals=evals,
             evals_result=evals_result,
-            early_stopping_rounds=early_stopping_rounds,
+            early_stopping_rounds=self.early_stopping_rounds,
             verbose_eval=50 if verbose else False
         )
         
