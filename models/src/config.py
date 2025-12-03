@@ -6,7 +6,7 @@ Optimized hyperparameters prioritizing accuracy over training time/cost.
 
 # Baseline Training (Complete Data) - Maximum Accuracy
 BASELINE_CONFIG = {
-    'lambda_weight': 0.0,              # Disable physics constraint initially to test learning
+    'lambda_weight': 0.01,             # Physics constraint weight (small to not dominate)
     'n_estimators': 2000,              # More trees = better accuracy (vs 500 default)
     'max_depth': 12,                   # Deeper trees (vs 8 default)
     'learning_rate': 0.03,             # Slower learning for better convergence (vs 0.05)
