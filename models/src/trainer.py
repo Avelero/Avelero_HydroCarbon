@@ -213,6 +213,7 @@ class FootprintModelTrainer:
     ) -> Tuple[str, float]:
         """
         Custom evaluation metric: MAE averaged across all targets.
+        Also stores per-target metrics for detailed logging.
         """
         labels = dtrain.get_label()
         n_samples = len(labels) // 4
@@ -220,16 +221,59 @@ class FootprintModelTrainer:
         preds = preds.reshape(n_samples, 4)
         labels = labels.reshape(n_samples, 4)
         
-        # Calculate MAE for each target
+        # Calculate MAE and R² for each target
+        target_names = ['carbon_mat', 'carbon_trans', 'carbon_tot', 'water_tot']
         maes = []
+        r2s = []
+        
         for i in range(4):
             mae = mean_absolute_error(labels[:, i], preds[:, i])
+            r2 = r2_score(labels[:, i], preds[:, i])
             maes.append(mae)
+            r2s.append(r2)
+        
+        # Store for detailed logging callback
+        self._last_eval_metrics = {
+            'maes': maes,
+            'r2s': r2s,
+            'target_names': target_names
+        }
         
         # Average MAE
         avg_mae = np.mean(maes)
         
         return 'avg_mae', avg_mae
+
+    def _detailed_eval_callback(self, env):
+        """
+        Callback for detailed logging every N iterations.
+        Shows per-target MAE, R², and physics constraint.
+        """
+        iteration = env.iteration
+        
+        # Log detailed metrics every 100 iterations or at key points
+        if iteration % 100 == 0 or iteration < 10 or iteration == env.end_iteration - 1:
+            if hasattr(self, '_last_eval_metrics') and self._last_eval_metrics:
+                metrics = self._last_eval_metrics
+                
+                # Only log detailed breakdown every 200 iterations to avoid spam
+                if iteration % 200 == 0 or iteration < 5:
+                    self.logger.info(f"\n{'='*70}")
+                    self.logger.info(f"Iteration {iteration} - Detailed Metrics (scaled)")
+                    self.logger.info(f"{'='*70}")
+                    self.logger.info(f"{'Target':<15} | {'MAE':>10} | {'R²':>10}")
+                    self.logger.info(f"{'-'*15}-+-{'-'*10}-+-{'-'*10}")
+                    
+                    for i, name in enumerate(metrics['target_names']):
+                        mae = metrics['maes'][i]
+                        r2 = metrics['r2s'][i]
+                        self.logger.info(f"{name:<15} | {mae:>10.6f} | {r2:>10.4f}")
+                    
+                    avg_mae = np.mean(metrics['maes'])
+                    avg_r2 = np.mean(metrics['r2s'])
+                    self.logger.info(f"{'-'*15}-+-{'-'*10}-+-{'-'*10}")
+                    self.logger.info(f"{'AVERAGE':<15} | {avg_mae:>10.6f} | {avg_r2:>10.4f}")
+                    self.logger.info(f"{'='*70}\n")
     
     def train(
         self,
@@ -301,7 +345,16 @@ class FootprintModelTrainer:
             self.logger.info("Using standard MSE objective (physics constraint disabled)")
             params['objective'] = 'reg:squarederror'
         
-        self.logger.info("Training in progress...")
+        # Initialize metrics storage for callback
+        self._last_eval_metrics = None
+        
+        self.logger.info("")
+        self.logger.info("="*70)
+        self.logger.info("TRAINING PROGRESS")
+        self.logger.info("="*70)
+        self.logger.info(f"{'Iter':<6} | {'Train MAE':>12} | {'Val MAE':>12} | {'Val R² (avg)':>12}")
+        self.logger.info("-"*70)
+        
         self.model = xgb.train(
             params,
             dtrain,
@@ -311,7 +364,8 @@ class FootprintModelTrainer:
             evals=evals,
             evals_result=evals_result,
             early_stopping_rounds=self.early_stopping_rounds,
-            verbose_eval=50 if verbose else False
+            verbose_eval=50 if verbose else False,
+            callbacks=[self._detailed_eval_callback] if verbose else None
         )
         
         self.training_history = evals_result
