@@ -1,53 +1,54 @@
 """
-Training Configuration for Maximum Accuracy
+Training Configuration for MAXIMUM ACCURACY
 
-Optimized hyperparameters prioritizing accuracy over training time/cost.
+Optimized hyperparameters prioritizing accuracy - no compromises on time/VRAM.
+Target: R² > 0.999 on all targets
 """
 
-# Baseline Training (Complete Data) - Maximum Accuracy
+# Baseline Training (Complete Data) - MAXIMUM ACCURACY (no compromises)
 BASELINE_CONFIG = {
     'lambda_weight': 0.0,              # Disabled - incompatible with log transform
-    'n_estimators': 2000,              # More trees = better accuracy (vs 500 default)
-    'max_depth': 12,                   # Deeper trees (vs 8 default)
-    'learning_rate': 0.03,             # Slower learning for better convergence (vs 0.05)
-    'subsample': 0.9,                  # Higher subsample (vs 0.8)
-    'colsample_bytree': 0.9,           # More features per tree (vs 0.8)
-    'min_child_weight': 1,             # Allow finer splits
-    'gamma': 0,                        # No regularization penalty initially
-    'reg_alpha': 0,                    # L1 regularization (tune if needed)
-    'reg_lambda': 1,                   # L2 regularization
+    'n_estimators': 5000,              # Many more trees (was 2000) - early stopping will find optimal
+    'max_depth': 15,                   # Very deep trees (was 12)
+    'learning_rate': 0.01,             # Very slow learning for best convergence (was 0.03)
+    'subsample': 0.95,                 # Use almost all data (was 0.9)
+    'colsample_bytree': 0.95,          # Use almost all features (was 0.9)
+    'min_child_weight': 1,             # Allow finest splits
+    'gamma': 0,                        # No regularization - maximize fit
+    'reg_alpha': 0,                    # No L1 regularization
+    'reg_lambda': 0.5,                 # Minimal L2 regularization
     'tree_method': 'hist',             # Histogram-based (XGBoost 2.0+)
-    'device': 'cuda',                  # GPU acceleration (XGBoost 2.0+ syntax)
-    'early_stopping_rounds': 100,      # More patience (vs 50)
+    'device': 'cuda',                  # GPU acceleration
+    'early_stopping_rounds': 200,      # Very patient (was 100) - wait for convergence
     'random_state': 42,
-    # GPU optimization - maximize VRAM usage for Tesla T4 (15GB)
-    'max_bin': 2048,                   # Much more bins (default 256) - uses ~8x more VRAM
-    'grow_policy': 'lossguide',        # Loss-guided growth uses more VRAM but faster
-    'max_leaves': 512,                 # More leaves per tree (needs grow_policy=lossguide)
+    # GPU optimization for maximum accuracy
+    'max_bin': 4096,                   # Maximum histogram resolution (was 2048)
+    'grow_policy': 'lossguide',        # Best split selection
+    'max_leaves': 1024,                # More leaves = finer granularity (was 512)
     'sampling_method': 'gradient_based',  # GPU-accelerated sampling
 }
 
-# Robustness Training (With Artificial Missing Values) - Maximum Accuracy
+# Robustness Training (With Artificial Missing Values) - MAXIMUM ACCURACY
 ROBUSTNESS_CONFIG = {
-    'lambda_weight': 0.15,             # Slightly higher constraint weight
-    'n_estimators': 2500,              # Even more trees for complex patterns
-    'max_depth': 14,                   # Deeper for handling missing patterns
-    'learning_rate': 0.02,             # Even slower for stability
-    'subsample': 0.85,                 # Slightly lower to prevent overfitting
-    'colsample_bytree': 0.85,
+    'lambda_weight': 0.15,             # Physics constraint weight
+    'n_estimators': 5000,              # Many trees (was 2500)
+    'max_depth': 16,                   # Very deep (was 14)
+    'learning_rate': 0.01,             # Very slow (was 0.02)
+    'subsample': 0.9,
+    'colsample_bytree': 0.9,
     'min_child_weight': 1,
-    'gamma': 0.1,                      # Small regularization
-    'reg_alpha': 0.1,
-    'reg_lambda': 1.5,
-    'tree_method': 'hist',             # Histogram-based (XGBoost 2.0+)
-    'device': 'cuda',                  # GPU acceleration (XGBoost 2.0+ syntax)
-    'early_stopping_rounds': 150,      # Even more patience
+    'gamma': 0.05,                     # Minimal regularization (was 0.1)
+    'reg_alpha': 0.05,                 # Minimal L1 (was 0.1)
+    'reg_lambda': 1.0,                 # Moderate L2 (was 1.5)
+    'tree_method': 'hist',
+    'device': 'cuda',
+    'early_stopping_rounds': 250,      # Very patient (was 150)
     'random_state': 42,
-    # GPU optimization - maximize VRAM usage for Tesla T4 (15GB)
-    'max_bin': 2048,                   # Much more bins - uses more VRAM
-    'grow_policy': 'lossguide',        # Loss-guided growth
-    'max_leaves': 512,                 # More leaves per tree
-    'sampling_method': 'gradient_based',  # GPU-accelerated sampling
+    # GPU optimization for maximum accuracy
+    'max_bin': 4096,
+    'grow_policy': 'lossguide',
+    'max_leaves': 1024,
+    'sampling_method': 'gradient_based',
 }
 
 # Missing Value Augmentation Settings
