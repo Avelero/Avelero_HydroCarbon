@@ -289,16 +289,24 @@ class FootprintModelTrainer:
             'disable_default_eval_metric': 1  # Use custom metric
         }
         
-        # Training with custom objective
+        # Training with custom objective (or built-in if lambda_weight=0)
         evals = [(dtrain, 'train'), (dval, 'val')]
         evals_result = {}
+        
+        # Use custom objective only if physics constraint is enabled
+        use_custom_obj = self.lambda_weight > 0
+        if use_custom_obj:
+            self.logger.info("Using physics-constrained custom objective")
+        else:
+            self.logger.info("Using standard MSE objective (physics constraint disabled)")
+            params['objective'] = 'reg:squarederror'
         
         self.logger.info("Training in progress...")
         self.model = xgb.train(
             params,
             dtrain,
             num_boost_round=self.n_estimators,
-            obj=self.physics_constrained_objective,
+            obj=self.physics_constrained_objective if use_custom_obj else None,
             custom_metric=self.custom_eval_metric,
             evals=evals,
             evals_result=evals_result,
