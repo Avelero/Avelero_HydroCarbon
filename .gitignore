@@ -37,41 +37,12 @@ CLAUDE.md
 Thumbs.db
 
 # ============================================================================
-# Large CSV data files (exceed GitHub's 100MB limit)
+# Large CSV data files - Now tracked with Git LFS
 # ============================================================================
+# All *.csv files are tracked via Git LFS (see .gitattributes)
 
-# Data creation output (large generated files)
-data/data_creation/output/Product_data.csv
-data/data_creation/output/Product_data_extra.csv
-data/data_creation/output/fashion_products_*.csv
-data/data_creation/output/test_extra_products.csv
-
-# Data correction files (large processed files)
-data/data_correction/input/Product_data.csv
-data/data_correction/output/Product_data_final.csv
+# Archive folders (can be regenerated)
 data/data_correction/output/archives/
-
-# Data calculations input/output (large files)
-data/data_calculations/input/Product_data_final.csv
-data/data_calculations/output/Product_data_with_footprints.csv
-data/data_calculations/output/carbon_footprint_results.csv
-data/data_calculations/output/material_footprints.csv
-data/data_calculations/output/material_water_footprints.csv
-data/data_calculations/output/transport_footprints.csv
-
-# Data splitter output (large files)
-data/data_splitter/output/train.csv
-data/data_splitter/output/validate.csv
-
-# Models data input (large files)
-models/data_input/Product_data_with_footprints.csv
-
-# ============================================================================
-# Files to KEEP (small reference datasets - DO NOT ignore these)
-# ============================================================================
-# !data/data_calculations/input/material_dataset_final.csv
-# !data/data_calculations/input/transport_emission_factors_generalised.csv
-# !data/data_calculations/input/utility_attractiveness.csv
 
 # Temporary files
 *.tmp
