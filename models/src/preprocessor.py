@@ -208,19 +208,21 @@ class FootprintPreprocessor:
         self, 
         df: pd.DataFrame, 
         y: pd.DataFrame = None, 
-        fit: bool = True
+        fit: bool = True,
+        n_folds: int = 5
     ) -> pd.DataFrame:
         """
-        Apply target encoding to categorical features.
+        Apply target encoding to categorical features with K-FOLD CROSS-VALIDATION.
         
-        Target encoding replaces category with mean target value for that category.
-        This gives the model DIRECT information about footprint patterns per category.
+        CRITICAL: Naive target encoding causes data leakage because you're using
+        the target values of each row to compute features for that same row.
         
-        Example:
-            category="Leather Jacket" → category_target_carbon = 8.5 (avg carbon footprint)
-            category="T-shirt" → category_target_carbon = 0.45
+        Solution: Use K-Fold CV during training:
+        - Split data into K folds
+        - For each fold, compute encoding from the OTHER folds only
+        - This prevents each row from "seeing" its own target value
         
-        This is MUCH more informative than label encoding (Jacket=47, T-shirt=23).
+        For inference (fit=False), use the global encoding maps.
         
         Uses smoothing to prevent overfitting on rare categories:
             encoded = (count * category_mean + smoothing * global_mean) / (count + smoothing)
@@ -228,13 +230,16 @@ class FootprintPreprocessor:
         Args:
             df: Features DataFrame
             y: Targets DataFrame (required for fit=True)
-            fit: If True, compute and store encoding maps
+            fit: If True, compute and store encoding maps using K-fold CV
+            n_folds: Number of folds for cross-validation (default: 5)
             
         Returns:
             DataFrame with target-encoded features added
         """
+        from sklearn.model_selection import KFold
+        
         df = df.copy()
-        smoothing = 10  # Smoothing parameter to prevent overfitting
+        smoothing = 20  # Increased smoothing for better regularization
         
         if fit:
             if y is None:
@@ -242,16 +247,61 @@ class FootprintPreprocessor:
             
             self.target_encoding_maps = {}
             
-            # For each categorical column
+            # Initialize encoded columns with NaN
+            encoded_cols = {}
+            for cat_col in CATEGORICAL_COLUMNS:
+                for target_col in self.TARGET_ENCODING_COLS:
+                    feature_name = f'{cat_col}_target_{target_col.replace("_", "")}'
+                    encoded_cols[feature_name] = np.full(len(df), np.nan)
+            
+            # K-Fold cross-validation for encoding
+            kf = KFold(n_splits=n_folds, shuffle=True, random_state=42)
+            
+            for fold_idx, (train_idx, val_idx) in enumerate(kf.split(df)):
+                # For each fold, compute encoding from train_idx only
+                for cat_col in CATEGORICAL_COLUMNS:
+                    cat_values_train = df[cat_col].iloc[train_idx].fillna('Unknown')
+                    cat_values_val = df[cat_col].iloc[val_idx].fillna('Unknown')
+                    
+                    for target_col in self.TARGET_ENCODING_COLS:
+                        # Compute stats from training fold only
+                        global_mean = y[target_col].iloc[train_idx].mean()
+                        
+                        category_stats = pd.DataFrame({
+                            'category': cat_values_train,
+                            'target': y[target_col].iloc[train_idx]
+                        }).groupby('category').agg({
+                            'target': ['mean', 'count']
+                        })
+                        category_stats.columns = ['mean', 'count']
+                        
+                        # Apply smoothing
+                        category_stats['smoothed_mean'] = (
+                            (category_stats['count'] * category_stats['mean'] + smoothing * global_mean) 
+                            / (category_stats['count'] + smoothing)
+                        )
+                        
+                        # Apply to validation fold
+                        encoding_map = category_stats['smoothed_mean'].to_dict()
+                        feature_name = f'{cat_col}_target_{target_col.replace("_", "")}'
+                        
+                        for i, idx in enumerate(val_idx):
+                            cat_val = cat_values_val.iloc[i]
+                            encoded_cols[feature_name][idx] = encoding_map.get(cat_val, global_mean)
+            
+            # Apply the K-fold encoded values
+            for col_name, values in encoded_cols.items():
+                df[col_name] = values
+            
+            # Now compute GLOBAL encoding maps for inference (using ALL data)
+            # This is safe because we only use these maps during inference, not training
             for cat_col in CATEGORICAL_COLUMNS:
                 self.target_encoding_maps[cat_col] = {}
                 cat_values = df[cat_col].fillna('Unknown')
                 
-                # For each target we want to encode
                 for target_col in self.TARGET_ENCODING_COLS:
                     global_mean = y[target_col].mean()
                     
-                    # Calculate mean target per category with smoothing
                     category_stats = pd.DataFrame({
                         'category': cat_values,
                         'target': y[target_col]
@@ -260,26 +310,20 @@ class FootprintPreprocessor:
                     })
                     category_stats.columns = ['mean', 'count']
                     
-                    # Apply smoothing
                     category_stats['smoothed_mean'] = (
                         (category_stats['count'] * category_stats['mean'] + smoothing * global_mean) 
                         / (category_stats['count'] + smoothing)
                     )
                     
-                    # Store mapping
                     encoding_map = category_stats['smoothed_mean'].to_dict()
                     encoding_map['__global_mean__'] = global_mean
                     self.target_encoding_maps[cat_col][target_col] = encoding_map
-                    
-                    # Apply encoding
-                    feature_name = f'{cat_col}_target_{target_col.replace("_", "")}'
-                    df[feature_name] = cat_values.map(encoding_map).fillna(global_mean)
             
             n_features = len(CATEGORICAL_COLUMNS) * len(self.TARGET_ENCODING_COLS)
-            print(f"[TARGET ENCODING] Created {n_features} target-encoded features")
+            print(f"[TARGET ENCODING] Created {n_features} target-encoded features (K-Fold CV, {n_folds} folds)")
         
         else:
-            # Apply stored encoding maps
+            # Apply stored global encoding maps (for inference)
             for cat_col in CATEGORICAL_COLUMNS:
                 cat_values = df[cat_col].fillna('Unknown')
                 

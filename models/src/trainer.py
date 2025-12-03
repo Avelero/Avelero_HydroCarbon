@@ -214,7 +214,18 @@ class FootprintModelTrainer:
         """
         Custom XGBoost objective function with physics constraint.
         
-        Loss = MSE_loss + lambda * |carbon_total - (carbon_material + carbon_transport)|²
+        IMPORTANT: Since targets are log-transformed, we can't directly enforce
+        carbon_total = carbon_material + carbon_transport in log space.
+        
+        Instead, we use a soft constraint that penalizes predictions where
+        carbon_total is much different from carbon_material + carbon_transport
+        after unscaling back to original space.
+        
+        For computational efficiency, we use an approximation:
+        - In log space, log(a+b) ≈ log(max(a,b)) + small correction
+        - We penalize when pred[2] deviates significantly from max(pred[0], pred[1])
+        
+        Loss = MSE_loss + lambda * soft_physics_penalty
         
         Args:
             preds: Predictions (n_samples * 4,) flattened
@@ -234,16 +245,37 @@ class FootprintModelTrainer:
         grad_mse = 2 * (preds - labels) / n_samples
         hess_mse = np.ones_like(preds) * 2 / n_samples
         
-        # Physics constraint gradient
-        # constraint_diff = carbon_total - (carbon_material + carbon_transport)
-        constraint_diff = preds[:, 2] - (preds[:, 0] + preds[:, 1])
+        # Soft physics constraint in log space:
+        # carbon_total should be >= max(carbon_material, carbon_transport)
+        # and <= carbon_material + carbon_transport (which in log space is approximately max + log(2))
+        # 
+        # We penalize when carbon_total is less than the maximum component
+        # or significantly greater than expected sum
+        max_component = np.maximum(preds[:, 0], preds[:, 1])
         
-        # Add constraint gradients to relevant outputs
+        # Penalty 1: carbon_total should be at least as large as max component
+        below_max = np.maximum(0, max_component - preds[:, 2])
+        
+        # Penalty 2: carbon_total shouldn't exceed sum by too much (in log space, sum ≈ max + 0.7)
+        # log(a + b) ≈ max(log(a), log(b)) + log(1 + exp(-|log(a) - log(b)|))
+        # For simplicity, we allow carbon_total to be up to max + 1.0 (≈ 2.7x the max component)
+        above_expected = np.maximum(0, preds[:, 2] - (max_component + 1.0))
+        
+        constraint_penalty = below_max + above_expected
+        
+        # Add constraint gradients
         grad_constraint = np.zeros_like(preds)
-        grad_constraint[:, 0] = -2 * self.lambda_weight * constraint_diff / n_samples  # carbon_material
-        grad_constraint[:, 1] = -2 * self.lambda_weight * constraint_diff / n_samples  # carbon_transport  
-        grad_constraint[:, 2] = 2 * self.lambda_weight * constraint_diff / n_samples   # carbon_total
-        # carbon_restraint[:, 3] = 0  # water_total (no constraint)
+        
+        # Gradient for carbon_material (index 0)
+        is_max_0 = (preds[:, 0] >= preds[:, 1]).astype(float)
+        grad_constraint[:, 0] = self.lambda_weight * is_max_0 * np.sign(below_max - above_expected) / n_samples
+        
+        # Gradient for carbon_transport (index 1)  
+        is_max_1 = (preds[:, 1] > preds[:, 0]).astype(float)
+        grad_constraint[:, 1] = self.lambda_weight * is_max_1 * np.sign(below_max - above_expected) / n_samples
+        
+        # Gradient for carbon_total (index 2)
+        grad_constraint[:, 2] = self.lambda_weight * (np.sign(above_expected) - np.sign(below_max)) / n_samples
         
         # Combine gradients
         grad = grad_mse + grad_constraint
