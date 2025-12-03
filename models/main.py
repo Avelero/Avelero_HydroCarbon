@@ -30,9 +30,12 @@ def main():
                         help='Learning rate (default: 0.05)')
     parser.add_argument('--max-depth', type=int, default=8,
                         help='Maximum tree depth (default: 8)')
-    parser.add_argument('--tree-method', type=str, default='gpu_hist',
-                        choices=['gpu_hist', 'hist'],
-                        help='Tree method: gpu_hist for GPU, hist for CPU (default: gpu_hist)')
+    parser.add_argument('--tree-method', type=str, default='hist',
+                        choices=['hist', 'approx', 'exact'],
+                        help='XGBoost tree method (hist recommended for GPU)')
+    parser.add_argument('--device', type=str, default='cuda',
+                        choices=['cuda', 'cpu'],
+                        help='Device for training (cuda for GPU, cpu for CPU)')
     parser.add_argument('--seed', type=int, default=42,
                         help='Random seed (default: 42)')
     
@@ -83,6 +86,7 @@ def main():
         max_depth=args.max_depth,
         learning_rate=args.learning_rate,
         tree_method=args.tree_method,
+        device=args.device,
         random_state=args.seed
     )
     
