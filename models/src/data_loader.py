@@ -34,16 +34,23 @@ FEATURE_COLUMNS = CATEGORICAL_COLUMNS + NUMERICAL_COLUMNS + MATERIAL_COLUMNS
 
 
 def load_data(
-    train_path: str = '/home/tr4moryp/Projects/bulk_product_generator/data/data_splitter/output/train.csv',
-    val_path: str = '/home/tr4moryp/Projects/bulk_product_generator/data/data_splitter/output/validate.csv',
+    train_path: str = None,
+    val_path: str = None,
     sample_size: int = None
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    # Auto-detect paths relative to this file's location
+    if train_path is None:
+        base_dir = Path(__file__).resolve().parent.parent.parent  # models/src -> models -> bulk_product_generator
+        train_path = base_dir / 'data' / 'data_splitter' / 'output' / 'train.csv'
+    if val_path is None:
+        base_dir = Path(__file__).resolve().parent.parent.parent
+        val_path = base_dir / 'data' / 'data_splitter' / 'output' / 'validate.csv'
     """
     Load training and validation data from CSV files.
     
     Args:
-        train_path: Path to training CSV
-        val_path: Path to validation CSV  
+        train_path: Path to training CSV (auto-detects if None)
+        val_path: Path to validation CSV (auto-detects if None)
         sample_size: If set, load only this many rows (for quick testing)
         
     Returns:
