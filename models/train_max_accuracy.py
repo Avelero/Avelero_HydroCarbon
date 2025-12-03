@@ -34,13 +34,13 @@ def train_baseline(args, logger):
     # Keep raw validation for robustness testing later
     X_val_raw = X_val.copy()
     
-    # Step 2: Formula features DISABLED to prevent data leakage
-    # The formula features were calculated using the exact same formulas as targets,
-    # causing the model to achieve artificially high R² (0.999+) but fail in production.
-    logger.info("Step 2/5: Skipping formula features (disabled to prevent data leakage)...")
-    # material_dataset = get_material_dataset_path()
-    # X_train = add_formula_features(X_train, MATERIAL_COLUMNS, material_dataset)
-    # X_val = add_formula_features(X_val, MATERIAL_COLUMNS, material_dataset)
+    # Step 2: Add formula features
+    # These are derived from the same input features (weight, materials, distance)
+    # and provide the model with physics-based relationships
+    logger.info("Step 2/5: Adding formula features...")
+    material_dataset = get_material_dataset_path()
+    X_train = add_formula_features(X_train, MATERIAL_COLUMNS, material_dataset)
+    X_val = add_formula_features(X_val, MATERIAL_COLUMNS, material_dataset)
     
     # Step 3: Preprocess (pass y_train for target encoding)
     logger.info("Step 3/5: Preprocessing features...")
