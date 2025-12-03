@@ -156,10 +156,20 @@ class FootprintModelTrainer:
             self.logger.info(f"Target mins: {self.target_mins}")
         
         # Shift to make all values positive (min becomes ~1)
+        # Use training mins, but clip values to ensure no negatives after shift
         y_shifted = y_values - self.target_mins + 1.0
+        
+        # Clip to ensure all values are positive (handles val data with lower values than train)
+        y_shifted = np.maximum(y_shifted, 1e-6)
         
         # Step 2: Apply log transformation
         y_log = np.log1p(y_shifted)  # log(1 + x) for numerical stability
+        
+        # Check for NaN/inf and warn
+        if np.any(~np.isfinite(y_log)):
+            n_bad = np.sum(~np.isfinite(y_log))
+            self.logger.warning(f"Found {n_bad} NaN/inf values in log-transformed targets, replacing with 0")
+            y_log = np.nan_to_num(y_log, nan=0.0, posinf=0.0, neginf=0.0)
         
         if fit:
             # Step 3: Standardize the log-transformed values
