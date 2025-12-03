@@ -161,41 +161,38 @@ def add_formula_features(
     
     print("Calculating formula-based features...")
     
-    # Convert one-hot encoded materials to dict format
-    def row_to_materials_dict(row):
-        materials = {}
-        for mat_col in material_columns:
-            percentage = row[mat_col]
-            if percentage > 0:
-                materials[mat_col] = percentage
-        return materials if materials else None
+    # VECTORIZED CALCULATION (much faster than row-by-row apply)
+    # Calculate weighted carbon and water intensity per kg of material mix
+    carbon_intensity = np.zeros(len(df))
+    water_intensity = np.zeros(len(df))
     
-    materials_dicts = df[material_columns].apply(row_to_materials_dict, axis=1)
+    for mat_col in material_columns:
+        if mat_col in df.columns:
+            mat_pct = df[mat_col].fillna(0).values
+            carbon_factor = MATERIAL_CARBON_FACTORS.get(mat_col, 0)
+            water_factor = MATERIAL_WATER_FACTORS.get(mat_col, 0)
+            carbon_intensity += mat_pct * carbon_factor
+            water_intensity += mat_pct * water_factor
     
-    # Calculate formula features
-    df['formula_carbon_material'] = df.apply(
-        lambda row: calculate_formula_carbon_material(
-            row['weight_kg'],
-            materials_dicts[row.name]
-        ),
-        axis=1
-    )
+    # formula_carbon_material = weight_kg * carbon_intensity
+    weight = df['weight_kg'].fillna(0).values
+    df['formula_carbon_material'] = weight * carbon_intensity
     
-    df['formula_carbon_transport'] = df.apply(
-        lambda row: calculate_formula_carbon_transport(
-            row['weight_kg'],
-            row['total_distance_km']
-        ),
-        axis=1
-    )
+    # formula_carbon_transport = (weight/1000) * distance * (weighted_EF/1000)
+    distance = df['total_distance_km'].fillna(0).values
+    df['formula_carbon_transport'] = (weight / 1000) * distance * (AVG_WEIGHTED_EF / 1000)
     
-    df['formula_water_total'] = df.apply(
-        lambda row: calculate_formula_water_total(
-            row['weight_kg'],
-            materials_dicts[row.name]
-        ),
-        axis=1
-    )
+    # formula_water_total = weight_kg * water_intensity
+    df['formula_water_total'] = weight * water_intensity
+    
+    # Set to NaN where inputs are missing (to match original behavior)
+    weight_missing = df['weight_kg'].isna()
+    distance_missing = df['total_distance_km'].isna()
+    materials_missing = df[material_columns].sum(axis=1) == 0
+    
+    df.loc[weight_missing | materials_missing, 'formula_carbon_material'] = np.nan
+    df.loc[weight_missing | distance_missing, 'formula_carbon_transport'] = np.nan
+    df.loc[weight_missing | materials_missing, 'formula_water_total'] = np.nan
     
     # Report statistics
     n_total = len(df)
