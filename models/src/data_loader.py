@@ -38,13 +38,6 @@ def load_data(
     val_path: str = None,
     sample_size: int = None
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    # Auto-detect paths relative to this file's location
-    if train_path is None:
-        base_dir = Path(__file__).resolve().parent.parent.parent  # models/src -> models -> bulk_product_generator
-        train_path = base_dir / 'data' / 'data_splitter' / 'output' / 'train.csv'
-    if val_path is None:
-        base_dir = Path(__file__).resolve().parent.parent.parent
-        val_path = base_dir / 'data' / 'data_splitter' / 'output' / 'validate.csv'
     """
     Load training and validation data from CSV files.
     
@@ -56,6 +49,14 @@ def load_data(
     Returns:
         X_train, y_train, X_val, y_val
     """
+    # Auto-detect paths relative to this file's location
+    if train_path is None:
+        base_dir = Path(__file__).resolve().parent.parent.parent  # models/src -> models -> bulk_product_generator
+        train_path = base_dir / 'data' / 'data_splitter' / 'output' / 'train.csv'
+    if val_path is None:
+        base_dir = Path(__file__).resolve().parent.parent.parent
+        val_path = base_dir / 'data' / 'data_splitter' / 'output' / 'validate.csv'
+    
     print(f"Loading training data from {train_path}...")
     if sample_size:
         print(f"  [Quick test mode: loading only {sample_size} samples]")
@@ -85,7 +86,7 @@ def load_data(
     y_val = val_df[TARGET_COLUMNS].copy()
     
     # Data validation
-    print(f"\n✓ Data loaded successfully")
+    print(f"\n[OK] Data loaded successfully")
     print(f"  Features: {len(FEATURE_COLUMNS)} ({len(CATEGORICAL_COLUMNS)} categorical, "
           f"{len(NUMERICAL_COLUMNS)} numerical, {len(MATERIAL_COLUMNS)} materials)")
     print(f"  Targets: {len(TARGET_COLUMNS)}")

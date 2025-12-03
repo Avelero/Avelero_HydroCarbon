@@ -139,7 +139,7 @@ class FootprintPreprocessor:
         X = self.scale_numerical_features(X, fit=True)
         
         self.is_fitted = True
-        print("✓ Preprocessing complete")
+        print("[OK] Preprocessing complete")
         
         return X
     
@@ -167,7 +167,7 @@ class FootprintPreprocessor:
         # 3. Scale numerical features
         X = self.scale_numerical_features(X, fit=False)
         
-        print("✓ Preprocessing complete")
+        print("[OK] Preprocessing complete")
         
         return X
     
@@ -252,4 +252,4 @@ if __name__ == '__main__':
     # Test save/load
     preprocessor.save('/tmp/test_preprocessor.pkl')
     loaded_preprocessor = FootprintPreprocessor.load('/tmp/test_preprocessor.pkl')
-    print("\n✓ Save/load test successful")
+    print("\n[OK] Save/load test successful")

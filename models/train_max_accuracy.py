@@ -76,7 +76,7 @@ def train_baseline(args, logger):
     trainer.save(str(save_path))
     preprocessor.save(str(save_path / 'preprocessor.pkl'))
     
-    logger.info(f"\n✓ Baseline model saved to: {save_path}")
+    logger.info(f"\n[OK] Baseline model saved to: {save_path}")
     
     return trainer, preprocessor, X_val_raw, X_val_final, y_val
 
@@ -128,9 +128,9 @@ def check_if_retraining_needed(baseline_metrics, robustness_results, logger):
     carbon_mae = baseline_metrics['carbon_total']['mae']
     water_mae = baseline_metrics['water_total']['mae']
     
-    logger.info(f"  R² target: {targets['baseline']['r2_min']} | Actual: {carbon_r2:.4f} | {'✓' if carbon_r2 >= targets['baseline']['r2_min'] else '✗'}")
-    logger.info(f"  Carbon MAE target: {targets['baseline']['mae_carbon_max']} | Actual: {carbon_mae:.4f} | {'✓' if carbon_mae <= targets['baseline']['mae_carbon_max'] else '✗'}")
-    logger.info(f"  Water MAE target: {targets['baseline']['mae_water_max']} | Actual: {water_mae:.1f} | {'✓' if water_mae <= targets['baseline']['mae_water_max'] else '✗'}")
+    logger.info(f"  R² target: {targets['baseline']['r2_min']} | Actual: {carbon_r2:.4f} | {'[OK]' if carbon_r2 >= targets['baseline']['r2_min'] else '[X]'}")
+    logger.info(f"  Carbon MAE target: {targets['baseline']['mae_carbon_max']} | Actual: {carbon_mae:.4f} | {'[OK]' if carbon_mae <= targets['baseline']['mae_carbon_max'] else '[X]'}")
+    logger.info(f"  Water MAE target: {targets['baseline']['mae_water_max']} | Actual: {water_mae:.1f} | {'[OK]' if water_mae <= targets['baseline']['mae_water_max'] else '[X]'}")
     
     if carbon_r2 < targets['baseline']['r2_min'] or carbon_mae > targets['baseline']['mae_carbon_max']:
         baseline_ok = False
@@ -145,8 +145,8 @@ def check_if_retraining_needed(baseline_metrics, robustness_results, logger):
         degradation = (baseline_metrics['carbon_total']['r2'] - r2_30) / baseline_metrics['carbon_total']['r2']
         
         logger.info("\nRobustness Targets (30% Missing):")
-        logger.info(f"  R² target: {targets['robustness_30pct_missing']['r2_min']} | Actual: {r2_30:.4f} | {'✓' if r2_30 >= targets['robustness_30pct_missing']['r2_min'] else '✗'}")
-        logger.info(f"  Degradation target: <{targets['robustness_30pct_missing']['degradation_max']*100}% | Actual: {degradation*100:.1f}% | {'✓' if degradation <= targets['robustness_30pct_missing']['degradation_max'] else '✗'}")
+        logger.info(f"  R² target: {targets['robustness_30pct_missing']['r2_min']} | Actual: {r2_30:.4f} | {'[OK]' if r2_30 >= targets['robustness_30pct_missing']['r2_min'] else '[X]'}")
+        logger.info(f"  Degradation target: <{targets['robustness_30pct_missing']['degradation_max']*100}% | Actual: {degradation*100:.1f}% | {'[OK]' if degradation <= targets['robustness_30pct_missing']['degradation_max'] else '[X]'}")
         
         if r2_30 < targets['robustness_30pct_missing']['r2_min'] or degradation > targets['robustness_30pct_missing']['degradation_max']:
             robustness_ok = False
@@ -160,7 +160,7 @@ def check_if_retraining_needed(baseline_metrics, robustness_results, logger):
         logger.info("    Recommendation: Retrain with augmented data (artificial missing values)")
         return True
     else:
-        logger.info("\n✓ All accuracy targets met! No retraining needed.")
+        logger.info("\n[OK] All accuracy targets met! No retraining needed.")
         return False
 
 
@@ -235,7 +235,7 @@ def train_with_augmentation(args, logger):
     trainer.save(str(save_path))
     preprocessor.save(str(save_path / 'preprocessor.pkl'))
     
-    logger.info(f"\n✓ Robustness model saved to: {save_path}")
+    logger.info(f"\n[OK] Robustness model saved to: {save_path}")
     
     # Evaluate
     eval_dir = save_path / 'evaluation'

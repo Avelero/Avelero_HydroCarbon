@@ -224,7 +224,7 @@ class FootprintModelTrainer:
         
         self.training_history = evals_result
         
-        self.logger.info(f"✓ Training complete (best iteration: {self.model.best_iteration})")
+        self.logger.info(f"[OK] Training complete (best iteration: {self.model.best_iteration})")
         
         # Evaluate on validation set
         self.evaluate(X_val, y_val, dataset_name='Validation')
@@ -400,4 +400,4 @@ if __name__ == '__main__':
     trainer.save('/tmp/test_model')
     loaded_trainer = FootprintModelTrainer.load('/tmp/test_model')
     
-    print("\n✓ Trainer test successful")
+    print("\n[OK] Trainer test successful")
