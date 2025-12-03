@@ -128,7 +128,10 @@ class FootprintModelTrainer:
 
     def _scale_targets(self, y: pd.DataFrame, fit: bool = False) -> np.ndarray:
         """
-        Scale targets to zero mean and unit variance.
+        Scale targets using log transformation + standardization.
+        
+        Log transformation compresses extreme values and handles skewed distributions.
+        We use log1p (log(1+x)) to handle zero values safely.
         
         Args:
             y: Target DataFrame with 4 columns
@@ -137,28 +140,54 @@ class FootprintModelTrainer:
         Returns:
             Scaled targets as numpy array
         """
-        if fit:
-            self.target_means = y.mean().values
-            self.target_stds = y.std().values
-            # Prevent division by zero
-            self.target_stds = np.where(self.target_stds == 0, 1.0, self.target_stds)
-            self.logger.info(f"Target means: {self.target_means}")
-            self.logger.info(f"Target stds: {self.target_stds}")
+        # Step 1: Handle negative values by shifting (add min + small epsilon)
+        y_values = y.values.copy()
         
-        scaled = (y.values - self.target_means) / self.target_stds
+        if fit:
+            # Store minimum values for each target to handle negatives
+            self.target_mins = y_values.min(axis=0)
+            self.logger.info(f"Target mins: {self.target_mins}")
+        
+        # Shift to make all values positive (min becomes ~1)
+        y_shifted = y_values - self.target_mins + 1.0
+        
+        # Step 2: Apply log transformation
+        y_log = np.log1p(y_shifted)  # log(1 + x) for numerical stability
+        
+        if fit:
+            # Step 3: Standardize the log-transformed values
+            self.target_log_means = y_log.mean(axis=0)
+            self.target_log_stds = y_log.std(axis=0)
+            # Prevent division by zero
+            self.target_log_stds = np.where(self.target_log_stds == 0, 1.0, self.target_log_stds)
+            
+            self.logger.info(f"Log-transformed means: {self.target_log_means}")
+            self.logger.info(f"Log-transformed stds: {self.target_log_stds}")
+        
+        # Standardize
+        scaled = (y_log - self.target_log_means) / self.target_log_stds
         return scaled
 
     def _unscale_targets(self, y_scaled: np.ndarray) -> np.ndarray:
         """
-        Unscale targets back to original scale.
+        Unscale targets back to original scale (reverse log transform).
         
         Args:
             y_scaled: Scaled predictions (n_samples, 4)
             
         Returns:
-            Unscaled predictions
+            Unscaled predictions in original scale
         """
-        return y_scaled * self.target_stds + self.target_means
+        # Step 1: Reverse standardization
+        y_log = y_scaled * self.target_log_stds + self.target_log_means
+        
+        # Step 2: Reverse log transformation
+        y_shifted = np.expm1(y_log)  # exp(x) - 1, inverse of log1p
+        
+        # Step 3: Reverse the shift
+        y_original = y_shifted + self.target_mins - 1.0
+        
+        return y_original
     
     def physics_constrained_objective(
         self,
@@ -475,8 +504,10 @@ class FootprintModelTrainer:
             'tree_method': self.tree_method,
             'random_state': self.random_state,
             'training_history': self.training_history,
-            'target_means': self.target_means,
-            'target_stds': self.target_stds
+            # Log-transform scaling parameters
+            'target_mins': self.target_mins,
+            'target_log_means': self.target_log_means,
+            'target_log_stds': self.target_log_stds
         }
         config_path = str(Path(path) / 'trainer_config.pkl')
         joblib.dump(config, config_path)
@@ -508,9 +539,10 @@ class FootprintModelTrainer:
         trainer.model.load_model(model_path)
         trainer.training_history = config.get('training_history', {})
         
-        # Load target scaling parameters
-        trainer.target_means = config.get('target_means')
-        trainer.target_stds = config.get('target_stds')
+        # Load log-transform scaling parameters
+        trainer.target_mins = config.get('target_mins')
+        trainer.target_log_means = config.get('target_log_means')
+        trainer.target_log_stds = config.get('target_log_stds')
         
         trainer.logger.info(f"Model loaded from {path}")
         return trainer
