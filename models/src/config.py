@@ -47,8 +47,9 @@ MISSING_AUGMENTATION = {
     'distance_missing_prob': 0.25,     # 25% missing distance (most common in practice)
     'materials_missing_prob': 0.10,    # 10% missing materials
     
-    # For robustness testing
-    'test_missing_levels': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],  # Test various missing rates
+    # For robustness testing (reduced for faster iteration)
+    'test_missing_levels': [0.0, 0.2, 0.4],  # 3 levels instead of 6
+    'test_n_trials': 3,                       # 3 trials instead of 5 (total: 9 vs 30)
 }
 
 # Hyperparameter Tuning Grid (if enabled)

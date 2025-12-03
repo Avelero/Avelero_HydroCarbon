@@ -84,6 +84,62 @@ class FootprintPreprocessor:
                     print(f"  {col}: min={self.formula_mins.get(col, 'N/A'):.4f}")
         
         return df
+    
+    def create_interaction_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Create interaction features that capture combined patterns.
+        
+        These help the model learn relationships like:
+        - "T-shirts typically use cotton" (category × material)
+        - "Heavy leather items" (weight × material)
+        - "Large footwear items" (category × weight)
+        
+        This is crucial for when formula features are missing - the model
+        can still infer footprints from these combined patterns.
+        """
+        df = df.copy()
+        
+        # 1. Primary material info (which material dominates)
+        df['primary_material_pct'] = df[MATERIAL_COLUMNS].max(axis=1)
+        df['material_diversity'] = (df[MATERIAL_COLUMNS] > 0).sum(axis=1)  # Count of materials used
+        
+        # 2. Weight-Material interactions
+        # Weight × primary material percentage (heavier items with more of one material)
+        df['weight_x_primary_pct'] = df['weight_kg'].fillna(0) * df['primary_material_pct']
+        
+        # Weight × total material (sanity check feature)
+        df['weight_x_total_material'] = df['weight_kg'].fillna(0) * df[MATERIAL_COLUMNS].sum(axis=1)
+        
+        # 3. Category-encoded interactions (after encoding)
+        # These will be created after categorical encoding
+        
+        # 4. Material group aggregates (high-impact vs low-impact materials)
+        # High carbon materials: leather, wool, silk, cashmere
+        high_carbon_cols = ['leather_bovine', 'leather_ovine', 'wool_generic', 'wool_merino', 
+                           'silk', 'cashmere', 'down_feather']
+        existing_high_carbon = [c for c in high_carbon_cols if c in df.columns]
+        df['high_carbon_material_pct'] = df[existing_high_carbon].sum(axis=1) if existing_high_carbon else 0
+        
+        # Synthetic materials: polyester, polyamide, acrylic
+        synthetic_cols = ['polyester_virgin', 'polyester_recycled', 'polyamide_6', 'polyamide_66',
+                         'polyamide_recycled', 'acrylic']
+        existing_synthetic = [c for c in synthetic_cols if c in df.columns]
+        df['synthetic_material_pct'] = df[existing_synthetic].sum(axis=1) if existing_synthetic else 0
+        
+        # Natural materials: cotton, linen, hemp
+        natural_cols = ['cotton_conventional', 'cotton_organic', 'cotton_recycled', 
+                       'linen_flax', 'hemp', 'jute']
+        existing_natural = [c for c in natural_cols if c in df.columns]
+        df['natural_material_pct'] = df[existing_natural].sum(axis=1) if existing_natural else 0
+        
+        # 5. Weight × material group interactions
+        df['weight_x_high_carbon'] = df['weight_kg'].fillna(0) * df['high_carbon_material_pct']
+        df['weight_x_synthetic'] = df['weight_kg'].fillna(0) * df['synthetic_material_pct']
+        df['weight_x_natural'] = df['weight_kg'].fillna(0) * df['natural_material_pct']
+        
+        print(f"[INTERACTION] Created {10} interaction features")
+        
+        return df
         
     def create_missing_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -183,16 +239,19 @@ class FootprintPreprocessor:
         """
         print("Preprocessing training data (fit_transform)...")
         
-        # 1. Create missing indicators
+        # 1. Create interaction features (before encoding, needs raw materials)
+        X = self.create_interaction_features(X)
+        
+        # 2. Create missing indicators
         X = self.create_missing_indicators(X)
         
-        # 2. Encode categorical features
+        # 3. Encode categorical features
         X = self.encode_categorical_features(X, fit=True)
         
-        # 3. Scale numerical features
+        # 4. Scale numerical features
         X = self.scale_numerical_features(X, fit=True)
         
-        # 4. Log-transform formula features (to match log-transformed targets)
+        # 5. Log-transform formula features (to match log-transformed targets)
         X = self.log_transform_formula_features(X, fit=True)
         
         self.is_fitted = True
@@ -215,21 +274,38 @@ class FootprintPreprocessor:
         
         print("Preprocessing data (transform)...")
         
-        # 1. Create missing indicators
+        # 1. Create interaction features (before encoding, needs raw materials)
+        X = self.create_interaction_features(X)
+        
+        # 2. Create missing indicators
         X = self.create_missing_indicators(X)
         
-        # 2. Encode categorical features
+        # 3. Encode categorical features
         X = self.encode_categorical_features(X, fit=False)
         
-        # 3. Scale numerical features
+        # 4. Scale numerical features
         X = self.scale_numerical_features(X, fit=False)
         
-        # 4. Log-transform formula features (using fitted mins)
+        # 5. Log-transform formula features (using fitted mins)
         X = self.log_transform_formula_features(X, fit=False)
         
         print("[OK] Preprocessing complete")
         
         return X
+    
+    # Interaction feature names (must match create_interaction_features)
+    INTERACTION_FEATURES = [
+        'primary_material_pct',
+        'material_diversity',
+        'weight_x_primary_pct',
+        'weight_x_total_material',
+        'high_carbon_material_pct',
+        'synthetic_material_pct',
+        'natural_material_pct',
+        'weight_x_high_carbon',
+        'weight_x_synthetic',
+        'weight_x_natural',
+    ]
     
     def get_feature_names(self, include_formula_features: bool = True) -> list:
         """
@@ -251,6 +327,9 @@ class FootprintPreprocessor:
         
         # Material features
         features.extend(MATERIAL_COLUMNS)
+        
+        # Interaction features (combined patterns)
+        features.extend(self.INTERACTION_FEATURES)
         
         # Missing indicators
         features.extend([

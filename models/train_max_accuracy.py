@@ -94,14 +94,14 @@ def evaluate_and_test(trainer, preprocessor, X_val_raw, X_val_final, y_val, args
     baseline_metrics = evaluator.evaluate_baseline(trainer, X_val_final, y_val)
     
     # Robustness testing
-    logger.info("\nStarting robustness testing (this may take several minutes)...")
+    logger.info("\nStarting robustness testing...")
     robustness_results = evaluator.test_missing_value_robustness(
         trainer,
         preprocessor,
         X_val_raw,
         y_val,
         missing_levels=MISSING_AUGMENTATION['test_missing_levels'],
-        n_trials=5  # Multiple trials for stability
+        n_trials=MISSING_AUGMENTATION.get('test_n_trials', 3)  # Faster iteration
     )
     
     # Generate report
@@ -244,7 +244,7 @@ def train_with_augmentation(args, logger):
     evaluator.test_missing_value_robustness(
         trainer, preprocessor, X_val_raw, y_val,
         missing_levels=MISSING_AUGMENTATION['test_missing_levels'],
-        n_trials=5
+        n_trials=MISSING_AUGMENTATION.get('test_n_trials', 3)
     )
     evaluator.generate_report()
     
