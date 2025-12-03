@@ -45,14 +45,11 @@ def train_baseline(args, logger):
     # Step 3: Preprocess (pass y_train for target encoding)
     logger.info("Step 3/5: Preprocessing features...")
     preprocessor = FootprintPreprocessor()
-    X_train_processed = preprocessor.fit_transform(X_train, y_train)  # Pass targets for target encoding
-    X_val_processed = preprocessor.transform(X_val)
+    X_train_final = preprocessor.fit_transform(X_train, y_train)  # Pass targets for target encoding
+    X_val_final = preprocessor.transform(X_val)
     
-    feature_cols = preprocessor.get_feature_names()
-    X_train_final = X_train_processed[feature_cols]
-    X_val_final = X_val_processed[feature_cols]
-    
-    logger.info(f"Final feature count: {len(feature_cols)}")
+    # fit_transform and transform now return only available numeric columns
+    logger.info(f"Final feature count: {X_train_final.shape[1]}")
     logger.info(f"Training shape: {X_train_final.shape}")
     logger.info(f"Validation shape: {X_val_final.shape}")
     
@@ -205,21 +202,17 @@ def train_with_augmentation(args, logger):
     logger.info(f"  Samples with missing distance: {missing_counts['distance']} ({missing_counts['distance']/n_samples*100:.1f}%)")
     logger.info(f"  Samples with missing materials: {missing_counts['materials']} ({missing_counts['materials']/n_samples*100:.1f}%)")
     
-    # Add formula features
-    logger.info("\nAdding formula features...")
-    material_dataset = get_material_dataset_path()
-    X_train_aug = add_formula_features(X_train_aug, MATERIAL_COLUMNS, material_dataset)
-    X_val = add_formula_features(X_val, MATERIAL_COLUMNS, material_dataset)
+    # Skip formula features (disabled to prevent data leakage)
+    logger.info("\nSkipping formula features (disabled to prevent data leakage)...")
+    # material_dataset = get_material_dataset_path()
+    # X_train_aug = add_formula_features(X_train_aug, MATERIAL_COLUMNS, material_dataset)
+    # X_val = add_formula_features(X_val, MATERIAL_COLUMNS, material_dataset)
     
     # Preprocess (pass y_train for target encoding)
     logger.info("Preprocessing...")
     preprocessor = FootprintPreprocessor()
-    X_train_processed = preprocessor.fit_transform(X_train_aug, y_train)  # Pass targets for target encoding
-    X_val_processed = preprocessor.transform(X_val)
-    
-    feature_cols = preprocessor.get_feature_names()
-    X_train_final = X_train_processed[feature_cols]
-    X_val_final = X_val_processed[feature_cols]
+    X_train_final = preprocessor.fit_transform(X_train_aug, y_train)  # Pass targets for target encoding
+    X_val_final = preprocessor.transform(X_val)
     
     # Train with robustness config
     logger.info("\nTraining model with ROBUSTNESS CONFIG (Maximum Accuracy)...")

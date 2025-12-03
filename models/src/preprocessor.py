@@ -404,8 +404,14 @@ class FootprintPreprocessor:
         print("[OK] Preprocessing complete")
         
         # Return only numeric feature columns (not original string columns)
-        feature_cols = self.get_feature_names(include_formula_features='formula_carbon_material' in X.columns)
+        # Check if formula features exist in the data
+        has_formula = 'formula_carbon_material' in X.columns
+        feature_cols = self.get_feature_names(include_formula_features=has_formula)
         available_cols = [c for c in feature_cols if c in X.columns]
+        
+        # Store which features are actually available (for get_feature_names later)
+        self._has_formula_features = has_formula
+        
         return X[available_cols]
     
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
@@ -445,7 +451,9 @@ class FootprintPreprocessor:
         print("[OK] Preprocessing complete")
         
         # Return only numeric feature columns (not original string columns)
-        feature_cols = self.get_feature_names(include_formula_features='formula_carbon_material' in X.columns)
+        # Use the same formula feature setting as during fit
+        has_formula = getattr(self, '_has_formula_features', False) and 'formula_carbon_material' in X.columns
+        feature_cols = self.get_feature_names(include_formula_features=has_formula)
         available_cols = [c for c in feature_cols if c in X.columns]
         return X[available_cols]
     
