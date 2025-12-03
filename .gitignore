@@ -59,8 +59,12 @@ data/data_calculations/output/material_footprints.csv
 data/data_calculations/output/material_water_footprints.csv
 data/data_calculations/output/transport_footprints.csv
 
-# Data splitter (large files)
-data/data_splitter/data_splitting_strategy.md
+# Data splitter output (large files)
+data/data_splitter/output/train.csv
+data/data_splitter/output/validate.csv
+
+# Models data input (large files)
+models/data_input/Product_data_with_footprints.csv
 
 # ============================================================================
 # Files to KEEP (small reference datasets - DO NOT ignore these)
