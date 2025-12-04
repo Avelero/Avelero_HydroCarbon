@@ -9,7 +9,7 @@ Target encoding uses K-Fold CV to prevent leakage.
 # Baseline Training (Complete Data) - PRODUCTION-READY (no data leakage)
 BASELINE_CONFIG = {
     'lambda_weight': 0.0,              # Disabled for baseline (enable for physics constraint)
-    'n_estimators': 3000,              # Enough trees for convergence
+    'n_estimators': 2000,              # Full 2000 iterations (no early stopping)
     'max_depth': 10,                   # Moderate depth to prevent overfitting
     'learning_rate': 0.03,             # Balanced learning rate
     'subsample': 0.8,                  # Use 80% of data per tree (regularization)
@@ -20,7 +20,7 @@ BASELINE_CONFIG = {
     'reg_lambda': 1.0,                 # L2 regularization (weight decay)
     'tree_method': 'hist',             # Histogram-based (XGBoost 2.0+)
     'device': 'cuda',                  # GPU acceleration
-    'early_stopping_rounds': 100,      # Stop if no improvement for 100 rounds
+    'early_stopping_rounds': None,     # Disabled - run all 2000 iterations
     'random_state': 42,
     # GPU optimization
     'max_bin': 512,                    # Moderate histogram resolution
@@ -33,7 +33,7 @@ BASELINE_CONFIG = {
 # Uses higher augmentation rates to learn fallback features
 ROBUSTNESS_CONFIG = {
     'lambda_weight': 0.0,              # Disabled (physics constraint not needed)
-    'n_estimators': 3000,              # Enough trees for convergence
+    'n_estimators': 2000,              # Full 2000 iterations (no early stopping)
     'max_depth': 12,                   # Slightly deeper for learning fallback patterns
     'learning_rate': 0.03,             # Same as baseline
     'subsample': 0.8,
@@ -44,7 +44,7 @@ ROBUSTNESS_CONFIG = {
     'reg_lambda': 1.0,                 # L2 regularization (same as baseline)
     'tree_method': 'hist',
     'device': 'cuda',
-    'early_stopping_rounds': 100,
+    'early_stopping_rounds': None,     # Disabled - run all 2000 iterations
     'random_state': 42,
     # GPU optimization
     'max_bin': 512,
