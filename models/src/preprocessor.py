@@ -97,11 +97,13 @@ class FootprintPreprocessor:
     Comprehensive preprocessing pipeline for footprint prediction.
     
     Workflow:
-    1. Create interaction features (combined patterns)
-    2. Create missing value indicators
-    3. Encode categorical features (label + target encoding)
-    4. Scale numerical features
-    5. Log-transform formula features (to match log-transformed targets)
+    1. Create fallback features (category-based statistics for robustness)
+    2. Create material-based features (dominant material info)
+    3. Create interaction features (combined patterns)
+    4. Create missing value indicators  
+    5. Encode categorical features (label + target encoding)
+    6. Scale numerical features
+    7. Log-transform formula features (to match log-transformed targets)
     """
     
     FORMULA_FEATURES = ['formula_carbon_material', 'formula_carbon_transport', 'formula_water_total']
@@ -121,7 +123,394 @@ class FootprintPreprocessor:
         self.formula_mins = {}  # Store mins for log transform
         self.target_encoding_maps = {}  # Store target encoding mappings
         self.is_fitted = False
-    
+        
+        # Fallback feature storage (fitted on training data)
+        self.category_stats = {}  # category -> {avg_carbon, avg_water, avg_weight, median_carbon}
+        self.parent_category_stats = {}  # parent_category -> {avg_carbon, avg_water}
+        self.global_stats = {}  # {global_avg_carbon, global_avg_water, global_avg_weight}
+        self.category_material_stats = {}  # category -> {avg_carbon_intensity, avg_water_intensity}
+
+    def create_category_fallback_features(
+        self, 
+        df: pd.DataFrame, 
+        y: pd.DataFrame = None, 
+        fit: bool = True
+    ) -> pd.DataFrame:
+        """
+        Create category-based fallback features using K-Fold CV to prevent leakage.
+        
+        These features provide robust fallbacks when formula features are unavailable
+        (e.g., when weight or materials are missing). The model can learn:
+        "T-shirts typically have ~5kg CO2e carbon footprint"
+        
+        Features created:
+        - category_avg_carbon: Mean carbon_material for this category
+        - category_avg_water: Mean water_total for this category  
+        - category_avg_weight: Mean weight_kg for this category
+        - category_median_carbon: Median carbon_material (robust to outliers)
+        - parent_category_avg_carbon: Mean carbon for parent category
+        - parent_category_avg_water: Mean water for parent category
+        - global_avg_carbon: Dataset-wide average (constant feature)
+        - global_avg_water: Dataset-wide average (constant feature)
+        
+        CRITICAL: Uses K-Fold CV during training to prevent data leakage.
+        Optimized with vectorized operations for speed.
+        """
+        from sklearn.model_selection import KFold
+        
+        df = df.copy()
+        
+        if fit:
+            if y is None:
+                raise ValueError("y (targets) must be provided for fit=True")
+            
+            # Compute global statistics (safe - doesn't leak individual targets)
+            self.global_stats = {
+                'global_avg_carbon': y['carbon_material'].mean(),
+                'global_avg_water': y['water_total'].mean(),
+                'global_avg_weight': df['weight_kg'].mean(),
+                'global_median_carbon': y['carbon_material'].median(),
+            }
+            
+            # Initialize K-fold encoded arrays
+            n_samples = len(df)
+            category_avg_carbon = np.full(n_samples, np.nan)
+            category_avg_water = np.full(n_samples, np.nan)
+            category_avg_weight = np.full(n_samples, np.nan)
+            category_median_carbon = np.full(n_samples, np.nan)
+            parent_avg_carbon = np.full(n_samples, np.nan)
+            parent_avg_water = np.full(n_samples, np.nan)
+            
+            # Pre-fill categories as arrays for faster indexing
+            all_categories = df['category'].fillna('Unknown').values
+            all_parents = df['parent_category'].fillna('Unknown').values
+            all_weights = df['weight_kg'].values
+            all_carbon = y['carbon_material'].values
+            all_water = y['water_total'].values
+            
+            # K-Fold CV to prevent leakage
+            kf = KFold(n_splits=5, shuffle=True, random_state=42)
+            
+            for train_idx, val_idx in kf.split(df):
+                # Get training fold data
+                train_cats = all_categories[train_idx]
+                train_parents = all_parents[train_idx]
+                train_weights = all_weights[train_idx]
+                train_carbon = all_carbon[train_idx]
+                train_water = all_water[train_idx]
+                
+                # Category-level stats using pandas groupby (fast)
+                train_df = pd.DataFrame({
+                    'category': train_cats,
+                    'parent_category': train_parents,
+                    'weight_kg': train_weights,
+                    'carbon_material': train_carbon,
+                    'water_total': train_water,
+                })
+                
+                cat_stats = train_df.groupby('category').agg({
+                    'carbon_material': ['mean', 'median'],
+                    'water_total': 'mean',
+                    'weight_kg': 'mean',
+                })
+                cat_stats.columns = ['avg_carbon', 'median_carbon', 'avg_water', 'avg_weight']
+                
+                parent_stats = train_df.groupby('parent_category').agg({
+                    'carbon_material': 'mean',
+                    'water_total': 'mean',
+                })
+                parent_stats.columns = ['avg_carbon', 'avg_water']
+                
+                # Global defaults for this fold
+                global_avg_carbon = train_carbon.mean()
+                global_avg_water = train_water.mean()
+                global_avg_weight = np.nanmean(train_weights)
+                global_median_carbon = np.nanmedian(train_carbon)
+                
+                # Vectorized lookup for validation fold using pandas map
+                val_cats = pd.Series(all_categories[val_idx])
+                val_parents = pd.Series(all_parents[val_idx])
+                
+                # Map categories to stats (vectorized)
+                category_avg_carbon[val_idx] = val_cats.map(cat_stats['avg_carbon']).fillna(global_avg_carbon).values
+                category_avg_water[val_idx] = val_cats.map(cat_stats['avg_water']).fillna(global_avg_water).values
+                category_avg_weight[val_idx] = val_cats.map(cat_stats['avg_weight']).fillna(global_avg_weight).values
+                category_median_carbon[val_idx] = val_cats.map(cat_stats['median_carbon']).fillna(global_median_carbon).values
+                parent_avg_carbon[val_idx] = val_parents.map(parent_stats['avg_carbon']).fillna(global_avg_carbon).values
+                parent_avg_water[val_idx] = val_parents.map(parent_stats['avg_water']).fillna(global_avg_water).values
+            
+            # Store features
+            df['category_avg_carbon'] = category_avg_carbon
+            df['category_avg_water'] = category_avg_water
+            df['category_avg_weight'] = category_avg_weight
+            df['category_median_carbon'] = category_median_carbon
+            df['parent_category_avg_carbon'] = parent_avg_carbon
+            df['parent_category_avg_water'] = parent_avg_water
+            
+            # Compute GLOBAL stats for inference (using ALL training data)
+            full_df = pd.DataFrame({
+                'category': all_categories,
+                'parent_category': all_parents,
+                'weight_kg': all_weights,
+                'carbon_material': all_carbon,
+                'water_total': all_water,
+            })
+            
+            # Category-level (for inference)
+            cat_stats_full = full_df.groupby('category').agg({
+                'carbon_material': ['mean', 'median'],
+                'water_total': 'mean',
+                'weight_kg': 'mean',
+            })
+            cat_stats_full.columns = ['avg_carbon', 'median_carbon', 'avg_water', 'avg_weight']
+            self.category_stats = cat_stats_full.to_dict('index')
+            
+            # Parent category (for inference)
+            parent_stats_full = full_df.groupby('parent_category').agg({
+                'carbon_material': 'mean',
+                'water_total': 'mean',
+            })
+            parent_stats_full.columns = ['avg_carbon', 'avg_water']
+            self.parent_category_stats = parent_stats_full.to_dict('index')
+            
+            print(f"[FALLBACK] Created 6 category-based fallback features (K-Fold CV)")
+            print(f"  Global avg carbon: {self.global_stats['global_avg_carbon']:.2f}")
+            print(f"  Global avg water: {self.global_stats['global_avg_water']:.0f}")
+            
+        else:
+            # Inference: use stored statistics (vectorized)
+            categories = df['category'].fillna('Unknown')
+            parent_cats = df['parent_category'].fillna('Unknown')
+            
+            # Convert stored dicts to series for vectorized map
+            cat_avg_carbon_map = {k: v['avg_carbon'] for k, v in self.category_stats.items()}
+            cat_avg_water_map = {k: v['avg_water'] for k, v in self.category_stats.items()}
+            cat_avg_weight_map = {k: v['avg_weight'] for k, v in self.category_stats.items()}
+            cat_median_carbon_map = {k: v['median_carbon'] for k, v in self.category_stats.items()}
+            parent_avg_carbon_map = {k: v['avg_carbon'] for k, v in self.parent_category_stats.items()}
+            parent_avg_water_map = {k: v['avg_water'] for k, v in self.parent_category_stats.items()}
+            
+            df['category_avg_carbon'] = categories.map(cat_avg_carbon_map).fillna(self.global_stats['global_avg_carbon'])
+            df['category_avg_water'] = categories.map(cat_avg_water_map).fillna(self.global_stats['global_avg_water'])
+            df['category_avg_weight'] = categories.map(cat_avg_weight_map).fillna(self.global_stats['global_avg_weight'])
+            df['category_median_carbon'] = categories.map(cat_median_carbon_map).fillna(self.global_stats['global_median_carbon'])
+            df['parent_category_avg_carbon'] = parent_cats.map(parent_avg_carbon_map).fillna(self.global_stats['global_avg_carbon'])
+            df['parent_category_avg_water'] = parent_cats.map(parent_avg_water_map).fillna(self.global_stats['global_avg_water'])
+        
+        # Global features (always available as constants)
+        df['global_avg_carbon'] = self.global_stats['global_avg_carbon']
+        df['global_avg_water'] = self.global_stats['global_avg_water']
+        
+        return df
+
+    def create_material_fallback_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Create material-based fallback features.
+        
+        These features help the model when material percentages are partially available
+        or when we need to identify high-impact materials.
+        
+        Features created:
+        - dominant_material_idx: Index of the material with highest percentage
+        - dominant_material_carbon: Carbon factor of the dominant material
+        - dominant_material_water: Water factor of the dominant material
+        - is_high_impact_material: Binary flag for leather/cashmere/silk/wool products
+        - material_count: Number of materials used (already in interaction features)
+        - avg_material_carbon_factor: Average carbon factor weighted by percentage
+        - max_material_carbon_factor: Carbon factor of highest-impact material used
+        """
+        df = df.copy()
+        
+        # Get material values as numpy array for vectorized operations
+        material_values = df[MATERIAL_COLUMNS].fillna(0).values
+        
+        # Dominant material (index of max percentage)
+        dominant_idx = np.argmax(material_values, axis=1)
+        df['dominant_material_idx'] = dominant_idx
+        
+        # Lookup emission factors for each material column
+        carbon_factors = np.array([MATERIAL_CARBON_FACTORS.get(col, 3.0) for col in MATERIAL_COLUMNS])
+        water_factors = np.array([MATERIAL_WATER_FACTORS.get(col, 3000) for col in MATERIAL_COLUMNS])
+        
+        # Dominant material's emission factors
+        df['dominant_material_carbon'] = carbon_factors[dominant_idx]
+        df['dominant_material_water'] = water_factors[dominant_idx]
+        
+        # High-impact material flag (leather, cashmere, silk, wool, down)
+        high_impact_cols = ['leather_bovine', 'leather_ovine', 'cashmere', 'silk', 
+                          'wool_generic', 'wool_merino', 'down_feather']
+        existing_high_impact = [c for c in high_impact_cols if c in df.columns]
+        if existing_high_impact:
+            df['is_high_impact_material'] = (df[existing_high_impact].sum(axis=1) > 0.1).astype(int)
+        else:
+            df['is_high_impact_material'] = 0
+        
+        # Max material carbon factor (highest-impact material in the product)
+        # Find which materials are used (>0)
+        material_used_mask = material_values > 0
+        # For each row, get the max carbon factor among used materials
+        carbon_factors_broadcast = np.tile(carbon_factors, (len(df), 1))
+        carbon_factors_masked = np.where(material_used_mask, carbon_factors_broadcast, 0)
+        df['max_material_carbon_factor'] = np.max(carbon_factors_masked, axis=1)
+        
+        # Similarly for water
+        water_factors_broadcast = np.tile(water_factors, (len(df), 1))
+        water_factors_masked = np.where(material_used_mask, water_factors_broadcast, 0)
+        df['max_material_water_factor'] = np.max(water_factors_masked, axis=1)
+        
+        print(f"[FALLBACK] Created 7 material-based fallback features")
+        
+        return df
+
+    def create_cross_fallback_features(
+        self, 
+        df: pd.DataFrame, 
+        y: pd.DataFrame = None,
+        fit: bool = True
+    ) -> pd.DataFrame:
+        """
+        Create cross features combining category and material information.
+        
+        These features help when BOTH category and material info are available,
+        providing more specific fallbacks than either alone.
+        
+        Features created:
+        - category_x_carbon_intensity: encoded_category × material_carbon_intensity
+        - category_x_water_intensity: encoded_category × material_water_intensity
+        - category_material_avg_carbon: Avg carbon intensity for this category's products
+        - category_material_avg_water: Avg water intensity for this category's products
+        
+        Note: category_encoded must be created first (call after encode_categorical_features)
+        Optimized with vectorized operations for speed.
+        """
+        from sklearn.model_selection import KFold
+        
+        df = df.copy()
+        
+        # Simple cross features (no leakage - computed from features only)
+        if 'category_encoded' in df.columns and 'material_carbon_intensity' in df.columns:
+            # Normalize category encoded to 0-1 range for better interaction
+            cat_max = df['category_encoded'].max()
+            if cat_max > 0:
+                cat_norm = df['category_encoded'] / cat_max
+            else:
+                cat_norm = df['category_encoded']
+            df['category_x_carbon_intensity'] = cat_norm * df['material_carbon_intensity']
+            df['category_x_water_intensity'] = cat_norm * df['material_water_intensity']
+        
+        # Category-material average intensity (requires K-fold for training)
+        if fit:
+            if y is None:
+                print("[WARNING] No targets - skipping category_material_avg features")
+                df['category_material_avg_carbon'] = df.get('material_carbon_intensity', 0)
+                df['category_material_avg_water'] = df.get('material_water_intensity', 0)
+                return df
+            
+            # Pre-extract arrays for speed
+            n_samples = len(df)
+            all_categories = df['category'].fillna('Unknown').values
+            carbon_intensities = df['material_carbon_intensity'].values
+            water_intensities = df['material_water_intensity'].values
+            
+            # Initialize output arrays
+            cat_material_carbon = np.full(n_samples, np.nan)
+            cat_material_water = np.full(n_samples, np.nan)
+            
+            # K-Fold CV for category-material stats
+            kf = KFold(n_splits=5, shuffle=True, random_state=42)
+            
+            for train_idx, val_idx in kf.split(df):
+                # Compute average material intensity per category from train fold
+                train_df = pd.DataFrame({
+                    'category': all_categories[train_idx],
+                    'material_carbon_intensity': carbon_intensities[train_idx],
+                    'material_water_intensity': water_intensities[train_idx],
+                })
+                
+                cat_mat_stats = train_df.groupby('category').agg({
+                    'material_carbon_intensity': 'mean',
+                    'material_water_intensity': 'mean',
+                })
+                
+                global_carbon_int = train_df['material_carbon_intensity'].mean()
+                global_water_int = train_df['material_water_intensity'].mean()
+                
+                # Vectorized lookup for validation fold
+                val_cats = pd.Series(all_categories[val_idx])
+                cat_material_carbon[val_idx] = val_cats.map(cat_mat_stats['material_carbon_intensity']).fillna(global_carbon_int).values
+                cat_material_water[val_idx] = val_cats.map(cat_mat_stats['material_water_intensity']).fillna(global_water_int).values
+            
+            df['category_material_avg_carbon'] = cat_material_carbon
+            df['category_material_avg_water'] = cat_material_water
+            
+            # Store for inference (using ALL data)
+            full_df = pd.DataFrame({
+                'category': all_categories,
+                'material_carbon_intensity': carbon_intensities,
+                'material_water_intensity': water_intensities,
+            })
+            cat_mat_full = full_df.groupby('category').agg({
+                'material_carbon_intensity': 'mean',
+                'material_water_intensity': 'mean',
+            })
+            self.category_material_stats = {
+                'carbon': cat_mat_full['material_carbon_intensity'].to_dict(),
+                'water': cat_mat_full['material_water_intensity'].to_dict(),
+                'global_carbon': df['material_carbon_intensity'].mean(),
+                'global_water': df['material_water_intensity'].mean(),
+            }
+            
+        else:
+            # Inference mode (vectorized)
+            categories = df['category'].fillna('Unknown')
+            df['category_material_avg_carbon'] = categories.map(
+                self.category_material_stats['carbon']
+            ).fillna(self.category_material_stats['global_carbon'])
+            df['category_material_avg_water'] = categories.map(
+                self.category_material_stats['water']
+            ).fillna(self.category_material_stats['global_water'])
+        
+        print(f"[FALLBACK] Created 4 cross fallback features")
+        
+        return df
+
+    def create_imputation_features(self, df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
+        """
+        Create features indicating data imputation and formula availability.
+        
+        These help the model understand data quality and adjust predictions:
+        - weight_imputed: Weight with median imputation
+        - weight_is_imputed: Binary flag for imputed weights
+        - formula_is_available: Binary flag (1 if weight AND materials available)
+        - any_critical_missing: Binary flag (1 if any critical field missing)
+        """
+        df = df.copy()
+        
+        # Store or retrieve median weight
+        if fit:
+            self.weight_median = df['weight_kg'].median()
+        
+        # Imputed weight
+        df['weight_imputed'] = df['weight_kg'].fillna(self.weight_median)
+        df['weight_is_imputed'] = df['weight_kg'].isna().astype(int)
+        
+        # Formula availability (requires weight AND materials)
+        materials_available = df[MATERIAL_COLUMNS].sum(axis=1) > 0
+        weight_available = ~df['weight_kg'].isna()
+        df['formula_is_available'] = (weight_available & materials_available).astype(int)
+        
+        # Any critical field missing
+        critical_missing = (
+            df['weight_kg'].isna() | 
+            (df[MATERIAL_COLUMNS].sum(axis=1) == 0) |
+            df['total_distance_km'].isna()
+        )
+        df['any_critical_missing'] = critical_missing.astype(int)
+        
+        print(f"[FALLBACK] Created 4 imputation/availability features")
+        
+        return df
+
     def log_transform_formula_features(self, df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
         """
         Apply log transformation to formula features.
@@ -505,22 +894,37 @@ class FootprintPreprocessor:
         # 1. Create interaction features (before encoding, needs raw materials)
         X = self.create_interaction_features(X)
         
-        # 2. Create missing indicators
+        # 2. Create material-based fallback features (needs material columns)
+        X = self.create_material_fallback_features(X)
+        
+        # 3. Create missing indicators
         X = self.create_missing_indicators(X)
         
-        # 3. Encode categorical features (label encoding)
+        # 4. Create imputation features (weight imputation, availability flags)
+        X = self.create_imputation_features(X, fit=True)
+        
+        # 5. Encode categorical features (label encoding)
         X = self.encode_categorical_features(X, fit=True)
         
-        # 4. Target encode categories (uses y to compute mean footprints per category)
+        # 6. Category-based fallback features (requires K-fold CV on targets)
+        if y is not None:
+            X = self.create_category_fallback_features(X, y, fit=True)
+        else:
+            print("[WARNING] No targets - skipping category fallback features")
+        
+        # 7. Cross features (requires encoded categories + material intensities)
+        X = self.create_cross_fallback_features(X, y, fit=True)
+        
+        # 8. Target encode categories (uses y to compute mean footprints per category)
         if y is not None:
             X = self.target_encode_categories(X, y, fit=True)
         else:
             print("[WARNING] No targets provided - skipping target encoding")
         
-        # 5. Scale numerical features
+        # 9. Scale numerical features
         X = self.scale_numerical_features(X, fit=True)
         
-        # 6. Log-transform formula features (to match log-transformed targets)
+        # 10. Log-transform formula features (to match log-transformed targets)
         X = self.log_transform_formula_features(X, fit=True)
         
         self.is_fitted = True
@@ -555,20 +959,32 @@ class FootprintPreprocessor:
         # 1. Create interaction features (before encoding, needs raw materials)
         X = self.create_interaction_features(X)
         
-        # 2. Create missing indicators
+        # 2. Create material-based fallback features
+        X = self.create_material_fallback_features(X)
+        
+        # 3. Create missing indicators
         X = self.create_missing_indicators(X)
         
-        # 3. Encode categorical features (label encoding)
+        # 4. Create imputation features
+        X = self.create_imputation_features(X, fit=False)
+        
+        # 5. Encode categorical features (label encoding)
         X = self.encode_categorical_features(X, fit=False)
         
-        # 4. Target encode categories (using fitted maps)
+        # 6. Category-based fallback features (using stored stats)
+        X = self.create_category_fallback_features(X, fit=False)
+        
+        # 7. Cross features
+        X = self.create_cross_fallback_features(X, fit=False)
+        
+        # 8. Target encode categories (using fitted maps)
         if self.target_encoding_maps:
             X = self.target_encode_categories(X, fit=False)
         
-        # 5. Scale numerical features
+        # 9. Scale numerical features
         X = self.scale_numerical_features(X, fit=False)
         
-        # 6. Log-transform formula features (using fitted mins)
+        # 10. Log-transform formula features (using fitted mins)
         X = self.log_transform_formula_features(X, fit=False)
         
         print("[OK] Preprocessing complete")
@@ -597,6 +1013,44 @@ class FootprintPreprocessor:
         'material_water_intensity',
         'weight_x_carbon_intensity',
         'weight_x_water_intensity',
+    ]
+    
+    # Material-based fallback features
+    MATERIAL_FALLBACK_FEATURES = [
+        'dominant_material_idx',
+        'dominant_material_carbon',
+        'dominant_material_water',
+        'is_high_impact_material',
+        'max_material_carbon_factor',
+        'max_material_water_factor',
+    ]
+    
+    # Category-based fallback features (fitted from training targets)
+    CATEGORY_FALLBACK_FEATURES = [
+        'category_avg_carbon',
+        'category_avg_water',
+        'category_avg_weight',
+        'category_median_carbon',
+        'parent_category_avg_carbon',
+        'parent_category_avg_water',
+        'global_avg_carbon',
+        'global_avg_water',
+    ]
+    
+    # Cross fallback features
+    CROSS_FALLBACK_FEATURES = [
+        'category_x_carbon_intensity',
+        'category_x_water_intensity',
+        'category_material_avg_carbon',
+        'category_material_avg_water',
+    ]
+    
+    # Imputation/availability features
+    IMPUTATION_FEATURES = [
+        'weight_imputed',
+        'weight_is_imputed',
+        'formula_is_available',
+        'any_critical_missing',
     ]
     
     # Target-encoded feature names (category × target)
@@ -632,6 +1086,18 @@ class FootprintPreprocessor:
         
         # Interaction features (combined patterns)
         features.extend(self.INTERACTION_FEATURES)
+        
+        # Material-based fallback features
+        features.extend(self.MATERIAL_FALLBACK_FEATURES)
+        
+        # Category-based fallback features
+        features.extend(self.CATEGORY_FALLBACK_FEATURES)
+        
+        # Cross fallback features
+        features.extend(self.CROSS_FALLBACK_FEATURES)
+        
+        # Imputation/availability features
+        features.extend(self.IMPUTATION_FEATURES)
         
         # Missing indicators
         features.extend([
