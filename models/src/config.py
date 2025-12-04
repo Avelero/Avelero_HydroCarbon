@@ -30,17 +30,18 @@ BASELINE_CONFIG = {
 }
 
 # Robustness Training (With Artificial Missing Values) - PRODUCTION-READY
+# Uses higher augmentation rates to learn fallback features
 ROBUSTNESS_CONFIG = {
-    'lambda_weight': 0.1,              # Physics constraint weight (moderate)
+    'lambda_weight': 0.0,              # Disabled (physics constraint not needed)
     'n_estimators': 3000,              # Enough trees for convergence
-    'max_depth': 12,                   # Slightly deeper for robustness
-    'learning_rate': 0.02,             # Slower learning for stability
+    'max_depth': 12,                   # Slightly deeper for learning fallback patterns
+    'learning_rate': 0.03,             # Same as baseline
     'subsample': 0.8,
     'colsample_bytree': 0.8,
     'min_child_weight': 5,
     'gamma': 0.1,                      # Regularization
     'reg_alpha': 0.1,                  # L1 regularization
-    'reg_lambda': 1.5,                 # Moderate L2 regularization
+    'reg_lambda': 1.0,                 # L2 regularization (same as baseline)
     'tree_method': 'hist',
     'device': 'cuda',
     'early_stopping_rounds': 100,

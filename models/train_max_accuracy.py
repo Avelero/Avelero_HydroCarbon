@@ -174,7 +174,7 @@ def train_with_augmentation(args, logger):
     X_train, y_train, X_val, y_val = load_data(sample_size=args.sample_size)
     X_val_raw = X_val.copy()
     
-    # Augment training data with artificial missing values
+    # Augment training data with artificial missing values (VECTORIZED)
     logger.info("\nAugmenting training data with artificial missing values...")
     logger.info(f"  Weight missing probability: {MISSING_AUGMENTATION['weight_missing_prob']*100}%")
     logger.info(f"  Distance missing probability: {MISSING_AUGMENTATION['distance_missing_prob']*100}%")
@@ -183,30 +183,38 @@ def train_with_augmentation(args, logger):
     X_train_aug = X_train.copy()
     n_samples = len(X_train_aug)
     
-    # Randomly introduce missing values
-    for idx in range(n_samples):
-        if np.random.random() < MISSING_AUGMENTATION['weight_missing_prob']:
-            X_train_aug.iloc[idx, X_train_aug.columns.get_loc('weight_kg')] = np.nan
-        if np.random.random() < MISSING_AUGMENTATION['distance_missing_prob']:
-            X_train_aug.iloc[idx, X_train_aug.columns.get_loc('total_distance_km')] = np.nan
-        if np.random.random() < MISSING_AUGMENTATION['materials_missing_prob']:
-            X_train_aug.iloc[idx, X_train_aug.columns.isin(MATERIAL_COLUMNS)] = 0
+    # Vectorized missing value introduction (FAST)
+    np.random.seed(42)  # Reproducible augmentation
+    
+    # Weight missing
+    weight_mask = np.random.random(n_samples) < MISSING_AUGMENTATION['weight_missing_prob']
+    X_train_aug.loc[weight_mask, 'weight_kg'] = np.nan
+    
+    # Distance missing  
+    distance_mask = np.random.random(n_samples) < MISSING_AUGMENTATION['distance_missing_prob']
+    X_train_aug.loc[distance_mask, 'total_distance_km'] = np.nan
+    
+    # Materials missing (zero out all material columns)
+    materials_mask = np.random.random(n_samples) < MISSING_AUGMENTATION['materials_missing_prob']
+    material_cols = [c for c in MATERIAL_COLUMNS if c in X_train_aug.columns]
+    X_train_aug.loc[materials_mask, material_cols] = 0
     
     missing_counts = {
-        'weight': X_train_aug['weight_kg'].isna().sum(),
-        'distance': X_train_aug['total_distance_km'].isna().sum(),
-        'materials': (X_train_aug[MATERIAL_COLUMNS].sum(axis=1) == 0).sum()
+        'weight': weight_mask.sum(),
+        'distance': distance_mask.sum(),
+        'materials': materials_mask.sum()
     }
     logger.info(f"\nAugmented training set:")
     logger.info(f"  Samples with missing weight: {missing_counts['weight']} ({missing_counts['weight']/n_samples*100:.1f}%)")
     logger.info(f"  Samples with missing distance: {missing_counts['distance']} ({missing_counts['distance']/n_samples*100:.1f}%)")
     logger.info(f"  Samples with missing materials: {missing_counts['materials']} ({missing_counts['materials']/n_samples*100:.1f}%)")
     
-    # Skip formula features (disabled to prevent data leakage)
-    logger.info("\nSkipping formula features (disabled to prevent data leakage)...")
-    # material_dataset = get_material_dataset_path()
-    # X_train_aug = add_formula_features(X_train_aug, MATERIAL_COLUMNS, material_dataset)
-    # X_val = add_formula_features(X_val, MATERIAL_COLUMNS, material_dataset)
+    # Add formula features - they will be NaN where inputs are missing
+    # This teaches the model to use fallback features when formula is unavailable
+    logger.info("\nAdding formula features (will be NaN where inputs missing)...")
+    material_dataset = get_material_dataset_path()
+    X_train_aug = add_formula_features(X_train_aug, MATERIAL_COLUMNS, material_dataset)
+    X_val = add_formula_features(X_val, MATERIAL_COLUMNS, material_dataset)
     
     # Preprocess (pass y_train for target encoding)
     logger.info("Preprocessing...")
@@ -250,12 +258,14 @@ def main():
     parser = argparse.ArgumentParser(description='Train footprint prediction model - Maximum Accuracy')
     parser.add_argument('--sample-size', type=int, default=None,
                         help='Sample size for testing (default: all 676K)')
-    parser.add_argument('--save-dir', type=str, default='saved/max_accuracy',
+    parser.add_argument('--save-dir', type=str, default='saved/gpu_training',
                         help='Base directory to save models')
     parser.add_argument('--skip-baseline', action='store_true',
                         help='Skip baseline training (use existing model)')
     parser.add_argument('--force-augmentation', action='store_true',
                         help='Force retraining with augmentation even if targets met')
+    parser.add_argument('--robustness-only', action='store_true',
+                        help='Skip baseline, train only with augmentation for robustness')
     parser.add_argument('--seed', type=int, default=42,
                         help='Random seed')
     
@@ -271,6 +281,16 @@ def main():
     logger.info(f"Dataset: {'Full 676K samples' if args.sample_size is None else f'{args.sample_size} samples'}")
     logger.info("")
     
+    # Fast path: robustness-only mode
+    if args.robustness_only:
+        logger.info("ROBUSTNESS-ONLY MODE: Training with data augmentation")
+        train_with_augmentation(args, logger)
+        logger.info("\n" + "="*80)
+        logger.info("TRAINING COMPLETE!")
+        logger.info("="*80)
+        logger.info(f"\nRobustness model saved in: {args.save_dir}/robustness")
+        return
+    
     # Phase 1: Baseline training
     if not args.skip_baseline:
         trainer, preprocessor, X_val_raw, X_val_final, y_val = train_baseline(args, logger)
@@ -283,9 +303,9 @@ def main():
         logger.info("Skipping baseline training (using existing model)")
         needs_retraining = True
     
-    # Phase 3: Retraining with augmentation (if needed)
+    # Phase 3: Retraining with augmentation (if needed or forced)
     if needs_retraining or args.force_augmentation:
-        logger.info("\nProceeding to Phase 3: Augmented retraining...")
+        logger.info("\nProceeding to Phase 3: Augmented retraining for robustness...")
         train_with_augmentation(args, logger)
     
     logger.info("\n" + "="*80)
