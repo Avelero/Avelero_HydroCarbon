@@ -12,24 +12,28 @@ An end-to-end pipeline for generating synthetic fashion product data and predict
 ---
 
 ## Table of Contents
-- [Overview](#overview)
-- [Synthetic Data Generation](#synthetic-data-generation)
-- [Key Features](#key-features)
-- [Pipeline Architecture](#pipeline-architecture)
-- [Quick Start](#quick-start)
-- [Detailed Usage](#detailed-usage)
-  - [1. Product Data Generation](#1-product-data-generation)
-  - [2. Data Correction](#2-data-correction)
-  - [3. Footprint Calculation](#3-footprint-calculation)
-  - [4. Machine Learning Models](#4-machine-learning-models)
-- [Training on Google Colab (GPU Acceleration)](#training-on-google-colab-gpu-acceleration)
-- [Datasets](#datasets)
-- [Project Structure](#project-structure)
-- [Installation](#installation)
-- [Results and Performance](#results-and-performance)
-- [Citation](#citation)
-- [License](#license)
-- [Acknowledgments](#acknowledgments)
+
+**Core Documentation:**
+- [Overview](#overview) — The problem, our solution, proof-of-concept status
+- [Synthetic Data Generation](#synthetic-data-generation) — LLM-powered product generation pipeline
+- [Physics-Based Footprint Calculation](#physics-based-footprint-calculation) — Scientific formulas and data sources
+- [Robust ML Model](#robust-ml-model) — XGBoost with feature dropout for missing data
+
+**Getting Started:**
+- [Quick Start](#quick-start) — Clone, install, run
+- [Detailed Usage](#detailed-usage) — Step-by-step pipeline instructions
+- [Training on Google Colab](#training-on-google-colab-gpu-acceleration) — GPU-accelerated model training
+
+**Reference:**
+- [Datasets](#datasets) — Data files and formats
+- [Project Structure](#project-structure) — Repository layout
+- [Installation](#installation) — Full dependency setup
+
+**Meta:**
+- [Citation](#citation) — How to cite this work
+- [License](#license) — MIT + third-party data licenses
+- [Acknowledgments](#acknowledgments) — Data sources and contributors
+
 
 ---
 
@@ -252,25 +256,28 @@ Calculating transport emissions accurately requires knowing:
 #### Base Transport Emission Formula
 
 ```
-                    ⎛  W  ⎞         ⎛ Σₘ sₘ(D) × EFₘ ⎞
-E(D) [kgCO2e] =    ⎜────⎟  ×  D  × ⎜─────────────────⎟
-                    ⎝1000⎠         ⎝      1000       ⎠
+E(D) = (W / 1000) × D × (Σₘ sₘ(D) × EFₘ) / 1000   [kgCO2e]
 ```
 
-| Symbol | Meaning |
-|--------|---------|
-| D | Travel distance (km) |
-| W | Shipment weight (kg) |
-| m | Transport mode ∈ {road, rail, iww, sea, air} |
-| EFₘ | Emission factor for mode m (gCO2e/tkm) |
-| sₘ(D) | Share of tonne-km by mode m (function of distance) |
+**Expanded:**
+
+> **E(D)** = (Weight in tonnes) × (Distance) × (Weighted emission factor in kg/tkm)
+
+| Symbol | Meaning | Unit |
+|--------|---------|------|
+| E(D) | Transport emissions | kgCO2e |
+| W | Shipment weight | kg |
+| D | Travel distance | km |
+| m | Transport mode | {road, rail, iww, sea, air} |
+| EFₘ | Emission factor for mode m | gCO2e/tkm |
+| sₘ(D) | Share of tonne-km by mode m | fraction (0-1) |
 
 #### Generalisation of Transport Modes
 
 Each transport mode has multiple subtypes with different emission factors. We average across subtypes using observed usage shares:
 
 ```
-EFₘ = Σₖ∈Kₘ EFₘ,ₖ × uₘ,ₖ
+EFₘ = Σₖ EFₘ,ₖ × uₘ,ₖ    (weighted average for mode m)
 ```
 
 | Symbol | Meaning |
@@ -409,8 +416,8 @@ Real-world data often has:
 
 | Model | Training Method | Accuracy (Complete) | Accuracy (40% Missing) | Use Case |
 |-------|-----------------|---------------------|------------------------|----------|
-| **Baseline** | Standard training | R² = 0.9999 | R² = -0.991 ❌ | Maximum accuracy when all data available |
-| **Robustness** | 20% feature dropout | R² = 0.9999 | R² = 0.936 ✓ | Production with incomplete data |
+| **Baseline** | Standard training | R² = 0.9999 | R² = -0.991 | Maximum accuracy when all data available |
+| **Robustness** | 20% feature dropout | R² = 0.9999 | R² = 0.936 | Production with incomplete data |
 
 ---
 
@@ -524,10 +531,10 @@ Both models were trained on 676,178 products and evaluated on a held-out set of 
 |-----------|-------|-----------------|--------------|-------------|
 | 0% | Baseline | 0.9999 | 0.9999 | 0.9998 |
 | 0% | Robustness | 0.9999 | 0.9999 | 0.9996 |
-| 20% | Baseline | **0.001** ❌ | 0.306 | 0.575 |
-| 20% | Robustness | **0.968** ✓ | 0.968 | 0.951 |
-| 40% | Baseline | **-0.991** ❌ | -0.380 | 0.146 |
-| 40% | Robustness | **0.936** ✓ | 0.936 | 0.902 |
+| 20% | Baseline | **0.001** | 0.306 | 0.575 |
+| 20% | Robustness | **0.968** | 0.968 | 0.951 |
+| 40% | Baseline | **-0.991** | -0.380 | 0.146 |
+| 40% | Robustness | **0.936** | 0.936 | 0.902 |
 
 #### MAE Comparison (20% Missing)
 
@@ -559,15 +566,6 @@ Target Calculations (C footprint calculator):
 ```
 
 The XGBoost model **learns the calculation formulas**. This is analogous to training a model to predict rectangle area from length × width — near-perfect accuracy is expected.
-
-**Data Leakage Verification:**
-
-| Check | Status |
-|-------|--------|
-| Target values in inputs? | ❌ No |
-| Train/test contamination? | ❌ No (stratified split) |
-| Future information used? | ❌ No |
-| Deterministic relationship? | ✅ Yes (explains high R²) |
 
 ---
 
@@ -639,39 +637,6 @@ trained_model/
     ├── xgb_model.json
     ├── preprocessor.pkl
     └── trainer_config.pkl
-```
-
-## Key Features
-- **LLM-powered Synthetic Data Generation**: Creates large, diverse, and realistic fashion product datasets.
-- **Physics-Based Footprint Calculation**: Provides accurate carbon and water footprint labels using validated scientific methods.
-- **Robust ML Models**: Predicts environmental footprints even with significant missing input data (up to 40% feature dropout).
-- **High Performance**: C-based footprint calculator processes 900,000 products in ~45 seconds.
-- **Scalable Architecture**: Designed for large-scale data generation and processing.
-- **Comprehensive Data Validation**: Ensures data quality and consistency throughout the pipeline.
-
----
-
-## Pipeline Architecture
-
-The project is structured into four main stages:
-
-1.  **Data Generation**: Uses Google Gemini 2.5 Flash to create synthetic product data.
-2.  **Data Correction**: Validates and cleans the generated data.
-3.  **Footprint Calculation**: Computes carbon and water footprints using C-based algorithms.
-4.  **Machine Learning**: Trains models to predict footprints from product attributes.
-
-```mermaid
-graph TD
-    A[Define Generation Space] --> B(Prompt Construction & API Calls)
-    B --> C{Validation & Incremental Saving}
-    C --> D[Synthetic Product Data .csv]
-    D --> E[Data Correction & Cleaning]
-    E --> F[Cleaned Product Data .csv]
-    F --> G[C-based Footprint Calculator]
-    G --> H[Product Data with Footprints .csv]
-    H --> I[ML Model Training (XGBoost)]
-    I --> J[Trained ML Model]
-    J --> K[Footprint Prediction API]
 ```
 
 ---
@@ -1333,38 +1298,6 @@ make run
 ```
 
 ---
-
-## Dataset Statistics
-
-### Product Distribution
-
-| Metric | Value |
-|--------|-------|
-| Total Products | 901,571 |
-| Categories | 86 fashion categories |
-| Materials | 34 unique materials |
-| Countries | 277 (global coverage) |
-| Gender Distribution | Female 61.5%, Male 38.2%, Other 0.3% |
-
-### Environmental Footprints
-
-| Metric | Min | Mean | Median | Max | Unit |
-|--------|-----|------|--------|-----|------|
-| Carbon (Material) | 0.15 | 3.2 | 2.8 | 18.5 | kgCO2e |
-| Carbon (Transport) | 0.05 | 2.0 | 1.6 | 12.3 | kgCO2e |
-| Carbon (Total) | 0.25 | 5.2 | 4.5 | 25.8 | kgCO2e |
-| Water | 50 | 2,800 | 1,950 | 15,000 | liters |
-
-### Highest Impact Materials (per kg)
-
-| Material | Carbon | Water |
-|----------|--------|-------|
-| Wool | 17.0 kgCO2e | 125,000 L |
-| Cashmere | 15.2 kgCO2e | 105,000 L |
-| Leather | 14.0 kgCO2e | 17,000 L |
-| Polyester (virgin) | 6.0 kgCO2e | 50 L |
-| Cotton | 5.5 kgCO2e | 10,000 L |
-
 
 
 ## Citation
