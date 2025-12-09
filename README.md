@@ -52,7 +52,7 @@ This project takes a different approach:
 
 1. **Synthetic Data Generation**: Use Google Gemini 2.5 Flash to generate 900,000+ realistic fashion products with complete attribute coverage (materials, weights, distances, categories)
 
-2. **Physics-Based Calculation**: Apply scientifically validated formulas (Idemat 2026, GLEC Framework) to calculate exact carbon and water footprints for each product
+2. **Physics-Based Calculation**: Apply scientifically validated formulas to calculate exact carbon and water footprints for each product
 
 3. **Robust ML Model**: Train an XGBoost model with **feature dropout augmentation** that learns to predict footprints even when 40% of input features are missing
 
@@ -184,301 +184,494 @@ Output 10 CSV rows:
 
 **Note:** Each row has natural variance in weights (0.789-1.134 kg), realistic distances based on country, and material compositions that sum to exactly 1.0.
 
+---
 
-### Architecture Overview
+## Physics-Based Footprint Calculation
+
+Once products are generated, we calculate exact environmental footprints using **scientifically validated formulas** and **peer-reviewed emission factors**. This creates the ground truth labels for ML training.
+
+### The Total Footprint Formula
+
+The total carbon footprint is the sum of material production and transport emissions:
+
+```
+Total_carbon_footprint = material_footprint + transport_footprint
+```
+
+Where:
+- **material_footprint** = Emissions from producing raw materials (cradle-to-gate)
+- **transport_footprint** = Emissions from shipping products to destination
+
+### Why C for Calculations?
+
+| Aspect | Python | C |
+|--------|--------|---|
+| **Speed** | ~15 minutes for 900k products | ~45 seconds |
+| **Memory** | High (pandas DataFrames) | Low (streaming) |
+| **Deployment** | Requires Python environment | Standalone binary |
+
+---
+
+### Material Carbon Footprint
+
+**Formula:**
+```
+carbon_material = Σ (W × Pᵢ × CFᵢ)
+```
+
+| Symbol | Meaning |
+|--------|---------|
+| W | Product weight (kg) |
+| Pᵢ | Percentage of material i (0-1) |
+| CFᵢ | Carbon factor for material i (kgCO2e/kg) |
+
+**Example:**
+```
+Product: "Classic Denim Jeans" (0.934 kg)
+Materials: {"cotton_conventional": 0.92, "elastane": 0.08}
+
+carbon_material = (0.934 × 0.92 × 0.94) + (0.934 × 0.08 × 5.55)
+                = 0.808 + 0.415 = 1.223 kgCO2e
+```
+
+---
+
+### Transport Carbon Footprint
+
+#### The Generalisation Problem
+
+Calculating transport emissions accurately requires knowing:
+- Which transport modes were used (road, rail, sea, air, inland waterway)
+- Distance traveled by each mode
+- Emission factor for each mode
+
+**Problem:** This detailed supply chain data is rarely available. Companies typically only know the total shipping distance, not the modal breakdown.
+
+**Our Solution:** Generalise the calculation using a **distance-dependent multinomial logit model** that estimates modal splits based on empirical freight transport data.
+
+#### Base Transport Emission Formula
+
+```
+                    ⎛  W  ⎞         ⎛ Σₘ sₘ(D) × EFₘ ⎞
+E(D) [kgCO2e] =    ⎜────⎟  ×  D  × ⎜─────────────────⎟
+                    ⎝1000⎠         ⎝      1000       ⎠
+```
+
+| Symbol | Meaning |
+|--------|---------|
+| D | Travel distance (km) |
+| W | Shipment weight (kg) |
+| m | Transport mode ∈ {road, rail, iww, sea, air} |
+| EFₘ | Emission factor for mode m (gCO2e/tkm) |
+| sₘ(D) | Share of tonne-km by mode m (function of distance) |
+
+#### Generalisation of Transport Modes
+
+Each transport mode has multiple subtypes with different emission factors. We average across subtypes using observed usage shares:
+
+```
+EFₘ = Σₖ∈Kₘ EFₘ,ₖ × uₘ,ₖ
+```
+
+| Symbol | Meaning |
+|--------|---------|
+| EFₘ,ₖ | Emission factor of subtype k within mode m |
+| uₘ,ₖ | Usage share of subtype k (Σuₘ,ₖ = 1) |
+| Kₘ | Set of subtypes for mode m |
+
+**Resulting Generalised Emission Factors:**
+
+| Mode | EF (gCO2e/tkm) | Calculation |
+|------|----------------|-------------|
+| Road | 72.9 | 83.1% HGV >30t (74) + 16.9% HGV ≤30t (67.63) |
+| Rail | 22.0 | Single generic freight rail |
+| Inland Waterway | 31.0 | Single generic barge |
+| Sea | 10.3 | 75% deep-sea (8.4) + 25% short-sea (16.0) |
+| Air | 782.0 | 48.4% freighter (560) + 51.6% belly-hold (990) |
+
+*Sources: Eurostat, CE Delft STREAM 2020, IATA Cargo Analysis 2024*
+
+#### Multinomial Logit Modal Split Model
+
+To estimate which modes are used at different distances, we use a **multinomial logit model**:
+
+**Mode Probability:**
+```
+         exp(Uₘ(D))
+Pₘ(D) = ────────────────
+        Σₖ exp(Uₖ(D))
+```
+
+**Utility Function:**
+```
+Uₘ(D) = β₀,ₘ + β₁,ₘ × ln(D)
+```
+
+| Symbol | Meaning |
+|--------|---------|
+| Pₘ(D) | Probability of using mode m at distance D |
+| Uₘ(D) | Utility (attractiveness) of mode m at distance D |
+| β₀,ₘ | Mode-specific intercept (baseline attractiveness) |
+| β₁,ₘ | Sensitivity to log-distance |
+
+**Road is the reference mode** with U_road ≡ 0 (all road β parameters = 0).
+
+#### Calibrated β Parameters
+
+Parameters estimated from CE Delft (2011) Rhine corridor data and calibrated for sea/air using EU freight statistics:
+
+| Mode | β₀ | β₁ | Source |
+|------|----|----|--------|
+| Road | 0 | 0 | Reference mode |
+| Rail | -10.537 | 1.372 | CE Delft 2011 (estimated) |
+| Inland Waterway | -5.770 | 0.762 | CE Delft 2011 (estimated) |
+| Sea | -17.108 | 2.364 | Calibrated to EU maritime share (~67%) |
+| Air | -17.345 | 1.881 | Calibrated to EU air share (~0.2%) |
+
+#### Weighted Emission Factor Calculation
+
+```
+EF_weighted(D) = Σₘ Pₘ(D) × EFₘ
+```
+
+**Example at D = 12,847 km (Bangladesh → Europe):**
+
+| Mode | Utility | Probability | EF × P |
+|------|---------|-------------|--------|
+| Road | 0 | 0.05 | 3.6 |
+| Rail | -10.54 + 1.37×9.46 = 2.42 | 0.19 | 4.2 |
+| IWW | -5.77 + 0.76×9.46 = 1.42 | 0.07 | 2.2 |
+| Sea | -17.11 + 2.36×9.46 = 5.23 | 0.60 | 6.2 |
+| Air | -17.35 + 1.88×9.46 = 0.44 | 0.09 | 70.4 |
+| **Total** | | **1.00** | **86.6 gCO2e/tkm** |
+
+```
+Transport carbon = (0.934/1000) × 12847 × (86.6/1000) = 1.04 kgCO2e
+```
+
+---
+
+### Water Footprint
+
+**Formula:**
+```
+water_total = Σ (W × Pᵢ × WFᵢ)
+```
+
+| Symbol | Meaning |
+|--------|---------|
+| W | Product weight (kg) |
+| Pᵢ | Percentage of material i (0-1) |
+| WFᵢ | Water footprint factor for material i (L/kg) |
+
+**Key Water Factors:**
+
+| Material | Water (L/kg) | Source |
+|----------|--------------|--------|
+| Cotton (conventional) | 9,113 | Water Footprint Network |
+| Wool (merino) | 170,000 | CSIRO |
+| Leather (bovine) | 17,100 | ScienceDirect |
+| Polyester (virgin) | 60 | Idemat 2026 |
+| Polyester (recycled) | 35 | Literature estimate |
+
+**Note:** Water footprint includes blue water (surface/groundwater) and green water (rainwater), but not grey water (dilution of pollutants).
+
+---
+
+### Data Sources
+
+| Source | Usage | License |
+|--------|-------|---------|
+| [TU Delft Idemat 2026](https://www.ecocostsvalue.com/idemat/) | Material carbon factors | Academic |
+| [CE Delft STREAM 2020](https://cedelft.eu/) | Transport emission factors | Academic |
+| [CE Delft 2011 IWT Report](https://cedelft.eu/) | Modal split β parameters | Academic |
+| [Water Footprint Network](https://waterfootprint.org/) | Water factors | Open Access |
+| [GLEC Framework v3.0](https://www.smartfreightcentre.org/) | Transport methodology | Public |
+| [IATA Cargo Analysis 2024](https://www.iata.org/) | Air freight modal shares | Public |
+
+## Robust ML Model
+
+With data generated and footprints calculated, we train XGBoost models to **predict footprints from partial product information** — the key innovation that provides value beyond direct calculation.
+
+### The Problem
+
+Direct calculation requires **all inputs**:
+- Exact material composition (34 percentage values)
+- Product weight (kg)
+- Transport distance (km)
+
+Real-world data often has:
+- Missing material details ("100% cotton" without specifics)
+- Unknown weights or manufacturing origins
+- Incomplete legacy databases
+
+### Our Approach: Two-Model Strategy
+
+| Model | Training Method | Accuracy (Complete) | Accuracy (40% Missing) | Use Case |
+|-------|-----------------|---------------------|------------------------|----------|
+| **Baseline** | Standard training | R² = 0.9999 | R² = -0.991 ❌ | Maximum accuracy when all data available |
+| **Robustness** | 20% feature dropout | R² = 0.9999 | R² = 0.936 ✓ | Production with incomplete data |
+
+---
+
+### Model Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        Data Generation Pipeline                              │
+│                       XGBoost Multi-Output Regressor                         │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐      │
-│  │  categories_     │    │   vocabularies   │    │     prompts      │      │
-│  │   rows.json      │───▶│      .py        │───▶│       .py        │      │
-│  │  (86 categories) │    │  (34 materials)  │    │ (dynamic builder)│      │
-│  └──────────────────┘    └──────────────────┘    └────────┬─────────┘      │
-│                                                            │                 │
-│                                                            ▼                 │
-│  ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐      │
-│  │   generator.py   │◀───│  Gemini 2.5      │◀───│  Rate Limiter    │      │
-│  │ (parallel chunks)│    │   Flash API      │    │  (Token Bucket)  │      │
-│  └────────┬─────────┘    └──────────────────┘    └──────────────────┘      │
-│           │                                                                  │
-│           ▼                                                                  │
-│  ┌──────────────────┐    ┌──────────────────┐                               │
-│  │  csv_writer.py   │───▶│  checkpoint.py   │                               │
-│  │ (incremental)    │    │ (resume support) │                               │
-│  └──────────────────┘    └──────────────────┘                               │
+│  Input Features (42 total):                                                 │
+│  ├── Categorical (one-hot encoded):                                        │
+│  │   ├── gender (2 values)                                                  │
+│  │   ├── parent_category (5 values)                                         │
+│  │   └── category (86 values)                                               │
+│  ├── Numerical:                                                              │
+│  │   ├── weight_kg                                                          │
+│  │   └── total_distance_km                                                  │
+│  └── Material Percentages (34):                                              │
+│      ├── cotton_conventional, cotton_organic, cotton_recycled               │
+│      ├── polyester_virgin, polyester_recycled, polyamide_6, ...             │
+│      └── leather_bovine, wool_merino, silk, down_duck, ...                  │
+│                                                                              │
+│  XGBoost Configuration:                                                      │
+│  ├── n_estimators: 1000                                                      │
+│  ├── max_depth: 8                                                            │
+│  ├── learning_rate: 0.05                                                     │
+│  ├── subsample: 0.8                                                          │
+│  ├── colsample_bytree: 0.8                                                   │
+│  ├── early_stopping_rounds: 50                                               │
+│  └── device: cuda (GPU accelerated)                                          │
+│                                                                              │
+│  Target Outputs (4):                                                         │
+│  ├── carbon_material (kgCO2e)                                               │
+│  ├── carbon_transport (kgCO2e)                                              │
+│  ├── carbon_total (kgCO2e)                                                  │
+│  └── water_total (liters)                                                   │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Generation Components
+---
 
-#### 1. Hierarchical Category System
+### Training Configuration
 
-Categories are loaded from `categories_rows.json` with parent-child relationships:
-
-```
-Male/Female (Gender)
-  └── Bottoms/Tops/Outerwear/Footwear/Dresses (Parent Category)
-        └── Jeans/T-Shirts/Jackets/Sneakers/Maxi Dresses (Leaf Category)
-```
-
-- **86 leaf categories** across 5 parent categories
-- Each category has a `parent_id` enabling hierarchy traversal
-- `get_hierarchy_info()` extracts gender, parent, and category from any leaf node
-
-#### 2. Material Vocabulary System
-
-Materials are defined in `vocabularies.py` with category-specific combinations:
-
-```python
-MATERIAL_COMBINATIONS = {
-    "Jeans": ["cotton_conventional", "cotton_organic", "elastane", "hemp"],
-    "Leather Jackets": ["leather_bovine", "leather_ovine", "viscose", "metal_brass"],
-    "Sneakers": ["leather_bovine", "polyester_virgin", "eva", "natural_rubber"],
-    # ... 86 categories total
-}
-```
-
-- **34 unique materials** with verified carbon/water footprint factors
-- Category-appropriate suggestions guide realistic compositions
-- Materials extracted dynamically: `MATERIAL_VOCAB = set(all materials used)`
-
-#### 3. Dynamic Prompt Builder
-
-The `build_generation_prompt_csv()` function constructs prompts dynamically:
-
-```python
-def build_generation_prompt_csv(categories_to_generate, countries_subset, n_per_category):
-    # Build category info with hierarchy and material suggestions
-    for cat in categories_to_generate:
-        info = get_hierarchy_info(cat)
-        mat_suggestions = MATERIAL_COMBINATIONS.get(info['category'], [])
-        # Include: "Jeans (Gender: Male, Parent: Bottoms, Suggested: cotton, elastane)"
-    
-    # Construct prompt with rules for:
-    # - Product naming (creative, realistic)
-    # - Material JSON format (shares sum to 1.0)
-    # - Weight ranges by product type (0.12-2.38 kg)
-    # - Distance ranges by route (520-23,800 km)
-    # - Natural variance (NO round numbers)
-```
-
-**Key prompt features:**
-- Category-specific material suggestions
-- Realistic weight ranges by product type (light apparel: 0.12-0.28 kg, heavy footwear: 1.23-2.38 kg)
-- Distance ranges by shipping route (local: 520-1,940 km, intercontinental: 10,300-23,800 km)
-- Explicit instruction to use natural variance (e.g., 0.847, not 0.85)
-
-#### 4. Chunk-Based Parallel Generation
-
-Products are generated in configurable chunks to maximize throughput:
-
-```python
-# Configuration
-CHUNK_SIZE = 5              # Products per API call
-PRODUCTS_PER_CATEGORY = 10500  # ~10,500 per category × 86 = ~900k total
-PARALLEL_WORKERS = 4        # Concurrent API calls
-
-# Execution
-work_queue = [
-    {"category": "Jeans", "chunk_index": 0, "products": 5},
-    {"category": "Jeans", "chunk_index": 1, "products": 5},
-    # ... thousands of chunks
-]
-
-with ThreadPoolExecutor(max_workers=4) as executor:
-    futures = {executor.submit(generate_chunk, work) for work in queue}
-```
-
-#### 5. Rate Limiting & Resilience
-
-Token bucket rate limiter prevents API quota exhaustion:
-
-```python
-# Tier 1 limits: 15 RPM, 1M TPM
-effective_rpm = int(TIER_1_RPM_LIMIT * 0.9)  # 90% buffer
-rate_limiter = TokenBucketRateLimiter(max_rpm=effective_rpm)
-
-# Before each API call
-wait_time = rate_limiter.acquire(tokens=1)
-if wait_time > 0:
-    time.sleep(wait_time)
-```
-
-**Resilience features:**
-- Automatic retry on transient failures (3 attempts per chunk)
-- Rate limit detection (429 errors) with graceful pause
-- Checkpoint saving on any failure
-
-#### 6. Checkpoint & Resume System
-
-Long generation runs can be interrupted and resumed:
-
-```python
-# Checkpoint saved after each successful chunk
-checkpoint = {
-    "session_id": "20251126_055821",
-    "output_file": "fashion_products_20251126.csv",
-    "completed_chunks": [(0, 0), (0, 1), (0, 2), ...],
-    "failed_chunks": [],
-    "total_products": 45230
-}
-
-# On resume
-checkpoint_manager = CheckpointManager.load_existing(checkpoint_path)
-work_queue = [chunk for chunk in all_chunks if not completed]
-```
-
-### Quality Assurance
-
-#### Generation-Time Validation
-
-Each API response is validated before saving:
-
-1. **CSV parsing** with proper quote handling for JSON fields
-2. **Field count check** (exactly 8 columns)
-3. **Line-by-line validation** with malformed row rejection
-
-#### Post-Generation Validation (Separate Pipeline)
-
-```
-Product_data.csv → data_correction/ → Product_data_final.csv
-                        │
-                        ├── Gender validation (Male/Female only)
-                        ├── Category hierarchy check
-                        ├── ISO 3166-1 country code validation
-                        ├── Material JSON parsing (sum = 1.0 ± 0.01)
-                        ├── Weight range check (0.05-5.0 kg)
-                        ├── Distance range check (100-25,000 km)
-                        └── Duplicate removal
-```
-
-**Pass rate**: ~97% of generated products pass all validation
-
-### Generation Statistics
-
-| Metric | Value |
-|--------|-------|
-| Total products generated | 902,000 |
-| Categories covered | 86 |
-| Unique materials | 34 |
-| Countries represented | 277 |
-| Generation time | ~7 hours |
-| API cost | ~$50 (Gemini 2.5 Flash) |
-| Validation pass rate | 97% |
-
-
-### Why This Matters
-Synthetic data generation democratizes access to large-scale datasets for sustainability research. Researchers, students, and developers can now:
-- Experiment with environmental impact models without proprietary data
-- Train machine learning algorithms on realistic, diverse product data
-- Develop and test sustainability tools before accessing real data
-- Understand trade-offs in material choices and supply chains
-
-This project demonstrates that **LLM-based synthetic data generation is a viable approach for sustainability research**, opening new possibilities for data-driven environmental analysis.
+| Parameter | Baseline | Robustness |
+|-----------|----------|------------|
+| Training samples | 676,178 | 676,178 |
+| Validation samples | 225,393 | 225,393 |
+| Feature dropout | 0% | 20% random masking |
+| GPU training time | ~2 minutes | ~2 minutes |
+| Split method | Stratified by category | Stratified by category |
 
 ---
 
+### How Feature Dropout Works
+
+During robustness training, we randomly set 20% of features to 0 for each sample:
+
+```python
+def apply_feature_dropout(X, dropout_rate=0.2):
+    mask = np.random.random(X.shape) > dropout_rate
+    return X * mask  # Masked features become 0
+```
+
+**This forces the model to:**
+
+1. **Learn redundant patterns**: If `cotton_conventional` is masked, infer from `category=Jeans`
+2. **Use feature correlations**: Heavy products from certain countries → higher footprints
+3. **Not over-rely on any single feature**: Predictions remain stable under partial information
+
+---
+
+### Performance Results
+
+Both models were trained on 676,178 products and evaluated on a held-out set of 225,393 products (25% stratified split).
+
+#### Baseline Model (Complete Data)
+
+| Target | MAE | RMSE | R² | MAPE |
+|--------|-----|------|-----|------|
+| Carbon Material | 0.041 kgCO2e | 0.146 kgCO2e | 0.9999 | 0.83% |
+| Carbon Transport | 0.0008 kgCO2e | 0.0018 kgCO2e | 0.9998 | — |
+| Carbon Total | 0.044 kgCO2e | 0.146 kgCO2e | 0.9999 | 0.95% |
+| Water Total | 115.3 L | 570.6 L | 0.9998 | 0.81% |
+
+**Interpretation:**
+- **R² = 0.9999** = model explains 99.99% of variance
+- **MAE = 0.041 kgCO2e** = predictions off by ~41 grams CO2e on average
+
+#### Robustness Model (Complete Data)
+
+| Target | MAE | RMSE | R² | MAPE |
+|--------|-----|------|-----|------|
+| Carbon Material | 0.045 kgCO2e | 0.166 kgCO2e | 0.9999 | 0.98% |
+| Carbon Transport | 0.0013 kgCO2e | 0.0026 kgCO2e | 0.9997 | — |
+| Carbon Total | 0.050 kgCO2e | 0.168 kgCO2e | 0.9999 | 1.17% |
+| Water Total | 132.9 L | 746.5 L | 0.9996 | 1.12% |
+
+**Trade-off:** Slightly higher MAE on complete data, but dramatically better when data is missing.
+
+---
+
+### Robustness Under Missing Data
+
+**The critical differentiator** — simulating real-world incomplete product information:
+
+#### R² Comparison at Different Missing Levels
+
+| Missing % | Model | Carbon Material | Carbon Total | Water Total |
+|-----------|-------|-----------------|--------------|-------------|
+| 0% | Baseline | 0.9999 | 0.9999 | 0.9998 |
+| 0% | Robustness | 0.9999 | 0.9999 | 0.9996 |
+| 20% | Baseline | **0.001** ❌ | 0.306 | 0.575 |
+| 20% | Robustness | **0.968** ✓ | 0.968 | 0.951 |
+| 40% | Baseline | **-0.991** ❌ | -0.380 | 0.146 |
+| 40% | Robustness | **0.936** ✓ | 0.936 | 0.902 |
+
+#### MAE Comparison (20% Missing)
+
+| Target | Baseline | Robustness | Improvement |
+|--------|----------|------------|-------------|
+| Carbon Material | 5.04 kgCO2e | **0.29 kgCO2e** | 17× better |
+| Carbon Total | 4.12 kgCO2e | **0.29 kgCO2e** | 14× better |
+| Water Total | 7,181 L | **772 L** | 9× better |
+
+---
+
+### Why Is Accuracy So High? (Not Data Leakage)
+
+The near-perfect R² = 0.9999 may appear suspicious, but it is **expected behavior**:
+
+**The targets are deterministically calculated from input features:**
+
+```
+Input Features:
+  - weight_kg
+  - total_distance_km  
+  - 34 material percentages
+
+Target Calculations (C footprint calculator):
+  carbon_material  = Σ (weight × material_% × carbon_factor)
+  water_total      = Σ (weight × material_% × water_factor)
+  carbon_transport = f(weight, distance, modal_split)
+  carbon_total     = carbon_material + carbon_transport
+```
+
+The XGBoost model **learns the calculation formulas**. This is analogous to training a model to predict rectangle area from length × width — near-perfect accuracy is expected.
+
+**Data Leakage Verification:**
+
+| Check | Status |
+|-------|--------|
+| Target values in inputs? | ❌ No |
+| Train/test contamination? | ❌ No (stratified split) |
+| Future information used? | ❌ No |
+| Deterministic relationship? | ✅ Yes (explains high R²) |
+
+---
+
+### Model Value Assessment
+
+| Use Case | Value |
+|----------|-------|
+| Replace C calculator | Low — formulas known |
+| **Handle missing data** | **High** — R² > 0.93 with 40% missing |
+| Approximate footprints | High — works with partial info |
+| Simpler deployment | Medium — no C library needed |
+| Feature importance | Medium — insight into drivers |
+
+---
+
+### When to Use Which Model
+
+```
+┌─────────────────────────────────────┐
+│   Do you have complete data?        │
+└──────────────┬──────────────────────┘
+               │
+       ┌───────┴───────┐
+       ▼               ▼
+      YES              NO
+       │               │
+       ▼               ▼
+┌──────────────┐ ┌──────────────────┐
+│  Use Direct  │ │ Use Robustness   │
+│ C Calculation│ │     Model        │
+│  (Exact)     │ │ (R² = 0.93-0.99) │
+└──────────────┘ └──────────────────┘
+```
+
+**Production Recommendations:**
+
+1. **E-commerce platforms** → Robustness model (users provide partial data)
+2. **Internal LCA tools** → Baseline model (complete data guaranteed)
+3. **Quick estimates** → Robustness model (fast approximation)
+4. **Legacy database analysis** → Robustness model (incomplete records)
+
+---
+
+### Training on Google Colab (GPU Acceleration)
+
+For faster training, use the provided Colab notebook:
+
+**Colab Advantages:**
+- Free GPU (Tesla T4) → training in ~2-4 minutes vs 6-8 hours on CPU
+- Pre-configured environment
+- No local setup required
+
+**Notebook:** `models/train_on_colab.ipynb`
+
+**Quick Start:**
+1. Upload `train.csv`, `validate.csv`, `material_dataset_final.csv` to Google Drive
+2. Open notebook in Colab
+3. Enable GPU (Runtime → Change runtime type → GPU)
+4. Run all cells
+
+**Output Files:**
+```
+trained_model/
+├── baseline/
+│   ├── xgb_model.json
+│   ├── preprocessor.pkl
+│   └── trainer_config.pkl
+└── robustness/
+    ├── xgb_model.json
+    ├── preprocessor.pkl
+    └── trainer_config.pkl
+```
+
 ## Key Features
-
-### Data Generation
-- **AI-Powered Generation**: Uses Google Gemini 2.5 Flash API to generate realistic product attributes
-- **Diverse Categories**: 86 fashion categories (dresses, shirts, jackets, shoes, accessories)
-- **Realistic Materials**: 34 different materials with accurate composition percentages
-- **Global Manufacturing**: 277 countries (comprehensive global coverage) with realistic transport distances
-
-### Environmental Analysis
-- **Carbon Footprint Calculation**:
-  - Material production emissions (cradle-to-gate)
-  - Transportation emissions using multinomial logit modal split model
-  - Scientifically validated emission factors (GLEC Framework, DEFRA 2023)
-
-- **Water Footprint Calculation**:
-  - Material-level water consumption
-  - Based on Idemat 2026 database and textile industry research
-
-### Machine Learning
-- **Predictive Models**: Neural networks to predict carbon and water footprints from product attributes
-- **Robustness Training**: Models trained to handle missing or incomplete data
-- **Evaluation Framework**: Comprehensive testing including data corruption scenarios
-
-### Data Quality
-- **Multi-Stage Validation**: Gender, category, country code, material composition checks
-- **Automated Correction**: Intelligent correction of common AI generation errors
-- **Checkpoint System**: Fault-tolerant processing for large-scale operations
+- **LLM-powered Synthetic Data Generation**: Creates large, diverse, and realistic fashion product datasets.
+- **Physics-Based Footprint Calculation**: Provides accurate carbon and water footprint labels using validated scientific methods.
+- **Robust ML Models**: Predicts environmental footprints even with significant missing input data (up to 40% feature dropout).
+- **High Performance**: C-based footprint calculator processes 900,000 products in ~45 seconds.
+- **Scalable Architecture**: Designed for large-scale data generation and processing.
+- **Comprehensive Data Validation**: Ensures data quality and consistency throughout the pipeline.
 
 ---
 
 ## Pipeline Architecture
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     BULK PRODUCT GENERATOR PIPELINE                  │
-└─────────────────────────────────────────────────────────────────────┘
 
-┌──────────────────┐
-│  1. GENERATION   │  Language: Python
-│  (Gemini API)    │  Input: Category definitions, material database
-├──────────────────┤  Output: ~900k raw products (CSV)
-│ - Product names  │  Tools: Google Gemini 2.5 Flash
-│ - Categories     │
-│ - Materials      │
-│ - Weights        │
-│ - Countries      │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│  2. CORRECTION   │  Language: Python
-│  (Validation)    │  Input: Raw product data
-├──────────────────┤  Output: Validated product data
-│ - Gender check   │  Processing:
-│ - Category check │   • Schema validation
-│ - Country codes  │   • Constraint enforcement
-│ - Material sum   │   • Duplicate removal
-│ - Range checks   │   • Error correction
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ 3. CALCULATION   │  Language: C (high performance)
-│  (Footprints)    │  Input: Validated products + reference data
-├──────────────────┤  Output: Products with footprints
-│ • Material       │  Calculations:
-│   Carbon & Water │   • Σ(weight × % × factor) for materials
-│ • Transport      │   • Modal split model for transport
-│   Carbon         │   • Distance-based emissions
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│  4. SPLITTING    │  Language: Python
-│  (Train/Val)     │  Input: Complete dataset
-├──────────────────┤  Output: 75/25 stratified splits
-│ - Stratified     │  Method: Random stratified by category
-│   by category    │
-│ - Reproducible   │
-│   (seed=42)      │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ 5. ML TRAINING   │  Language: Python (TensorFlow/Keras)
-│  (Prediction)    │  Input: Train/validation splits
-├──────────────────┤  Output: Trained models + predictions
-│ • Neural Network │  Models:
-│ • Robustness     │   • Baseline: Standard training
-│   Training       │   • Robustness: Dropout augmentation
-│ • Evaluation     │
-└──────────────────┘
+The project is structured into four main stages:
 
-OUTPUTS:
-├── datasets/raw/                   → Raw generated products
-├── datasets/processed/             → Validated + footprint data
-├── datasets/splits/                → Train/validation sets
-└── datasets/model_outputs/         → Predictions + metrics
+1.  **Data Generation**: Uses Google Gemini 2.5 Flash to create synthetic product data.
+2.  **Data Correction**: Validates and cleans the generated data.
+3.  **Footprint Calculation**: Computes carbon and water footprints using C-based algorithms.
+4.  **Machine Learning**: Trains models to predict footprints from product attributes.
+
+```mermaid
+graph TD
+    A[Define Generation Space] --> B(Prompt Construction & API Calls)
+    B --> C{Validation & Incremental Saving}
+    C --> D[Synthetic Product Data .csv]
+    D --> E[Data Correction & Cleaning]
+    E --> F[Cleaned Product Data .csv]
+    F --> G[C-based Footprint Calculator]
+    G --> H[Product Data with Footprints .csv]
+    H --> I[ML Model Training (XGBoost)]
+    I --> J[Trained ML Model]
+    J --> K[Footprint Prediction API]
 ```
 
 ---
@@ -1141,17 +1334,20 @@ make run
 
 ---
 
-## Results and Performance
+## Dataset Statistics
 
-### Dataset Statistics
-**Product Distribution**:
-- **Total Products**: 901,571
-- **Categories**: 86 fashion categories
-- **Materials**: 34 unique materials
-- **Countries**: 277 countries (comprehensive global coverage)
-- **Gender Distribution**: Female (61.5%), Male (38.2%), Other (0.3%)
+### Product Distribution
 
-**Environmental Footprints**:
+| Metric | Value |
+|--------|-------|
+| Total Products | 901,571 |
+| Categories | 86 fashion categories |
+| Materials | 34 unique materials |
+| Countries | 277 (global coverage) |
+| Gender Distribution | Female 61.5%, Male 38.2%, Other 0.3% |
+
+### Environmental Footprints
+
 | Metric | Min | Mean | Median | Max | Unit |
 |--------|-----|------|--------|-----|------|
 | Carbon (Material) | 0.15 | 3.2 | 2.8 | 18.5 | kgCO2e |
@@ -1159,133 +1355,24 @@ make run
 | Carbon (Total) | 0.25 | 5.2 | 4.5 | 25.8 | kgCO2e |
 | Water | 50 | 2,800 | 1,950 | 15,000 | liters |
 
-**Highest Impact Materials** (per kg):
-1. Wool: 17.0 kgCO2e, 125,000 L
-2. Cashmere: 15.2 kgCO2e, 105,000 L
-3. Leather: 14.0 kgCO2e, 17,000 L
-4. Polyester (virgin): 6.0 kgCO2e, 50 L
-5. Cotton: 5.5 kgCO2e, 10,000 L
+### Highest Impact Materials (per kg)
 
-### Model Performance
-
-Both models were trained on 676,178 products and evaluated on a held-out validation set of 225,393 products (25% stratified split by category).
-
-#### Baseline Model (XGBoost Multi-Output Regression)
-
-Optimized for maximum accuracy on complete data. Achieves near-perfect predictions when all input features are available.
-
-**Validation Set Metrics**:
-| Target | MAE | RMSE | R² | MAPE |
-|--------|-----|------|----|----|
-| **Carbon Material** | 0.041 kgCO2e | 0.146 kgCO2e | 0.9999 | 0.83% |
-| **Carbon Transport** | 0.0008 kgCO2e | 0.0018 kgCO2e | 0.9998 | — |
-| **Carbon Total** | 0.044 kgCO2e | 0.146 kgCO2e | 0.9999 | 0.95% |
-| **Water Total** | 115.3 L | 570.6 L | 0.9998 | 0.81% |
-
-**Interpretation**:
-- **R² = 0.9999** means the model explains 99.99% of variance in the target variable
-- **MAE of 0.041 kgCO2e** for carbon material means predictions are off by ~41 grams CO2e on average
-- **Constraint Violation Rate**: 1.8% of predictions violate physics constraint (carbon_total ≠ carbon_material + carbon_transport)
-
-#### Robustness Model (XGBoost with Feature Dropout Augmentation)
-
-Trained with 20% random feature masking during training to improve resilience when input data is incomplete or missing.
-
-**Validation Set Metrics (Complete Data)**:
-| Target | MAE | RMSE | R² | MAPE |
-|--------|-----|------|----|----|
-| **Carbon Material** | 0.045 kgCO2e | 0.166 kgCO2e | 0.9999 | 0.98% |
-| **Carbon Transport** | 0.0013 kgCO2e | 0.0026 kgCO2e | 0.9997 | — |
-| **Carbon Total** | 0.050 kgCO2e | 0.168 kgCO2e | 0.9999 | 1.17% |
-| **Water Total** | 132.9 L | 746.5 L | 0.9996 | 1.12% |
-
-**Trade-off**: Slightly lower accuracy on complete data (R² 0.9999 vs 0.9999), but dramatically better performance when data is missing.
-
-#### Robustness Under Missing Data
-
-The key differentiator between models becomes apparent when input features are randomly masked (simulating real-world incomplete product information):
-
-**Performance Comparison at Different Missing Data Levels**:
-
-| Missing % | Model | Carbon Material R² | Carbon Total R² | Water Total R² |
-|-----------|-------|-------------------|-----------------|----------------|
-| **0%** | Baseline | 0.9999 | 0.9999 | 0.9998 |
-| **0%** | Robustness | 0.9999 | 0.9999 | 0.9996 |
-| **20%** | Baseline | 0.001 | 0.306 | 0.575 |
-| **20%** | Robustness | **0.968** ✓ | **0.968** | **0.951** |
-| **40%** | Baseline | -0.991 | -0.380 | 0.146 |
-| **40%** | Robustness | **0.936** ✓ | **0.936** | **0.902** |
-
-**MAE Comparison (20% Missing Data)**:
-| Target | Baseline MAE | Robustness MAE | Improvement |
-|--------|-------------|----------------|-------------|
-| Carbon Material | 5.04 kgCO2e | **0.29 kgCO2e** | 17× better |
-| Carbon Total | 4.12 kgCO2e | **0.29 kgCO2e** | 14× better |
-| Water Total | 7,181 L | **772 L** | 9× better |
-
-#### Key Insights
-
-1. **Baseline model is fragile**: Performance collapses catastrophically when even 20% of features are missing (R² drops from 0.9999 to 0.001)
-
-2. **Robustness model degrades gracefully**: Maintains R² > 0.93 even with 40% of features missing
-
-3. **Real-world recommendation**: 
-   - Use **Baseline** when you have guaranteed complete product data
-   - Use **Robustness** for production systems where missing fields are possible (e.g., user-submitted products, incomplete databases)
-
-4. **Physics constraint violations**: Both models occasionally predict carbon_total ≠ carbon_material + carbon_transport. Baseline: 1.8%, Robustness: 2.9%. Post-processing correction recommended for production use
-
-#### Why Is Accuracy So High? (Not Data Leakage)
-
-The near-perfect R² = 0.9999 may appear suspicious, but it is **expected behavior** — not data leakage. Here's why:
-
-**The targets are deterministically calculated from the input features:**
-
-```
-Input Features:
-  - weight_kg
-  - total_distance_km  
-  - 34 material percentage columns (cotton_conventional, polyester_virgin, etc.)
-
-Target Calculations (from C footprint calculator):
-  carbon_material = Σ (weight_kg × material_percentage × carbon_factor)
-  water_total     = Σ (weight_kg × material_percentage × water_factor)
-  carbon_transport = f(weight_kg, distance_km, modal_split_model)
-  carbon_total    = carbon_material + carbon_transport
-```
-
-The XGBoost model is essentially **learning the calculation formulas** that generated the targets. This is analogous to training a model to predict rectangle area from length and width — near-perfect accuracy is expected because the relationship is deterministic.
-
-**Why this is NOT data leakage:**
-
-| Leakage Check | Status |
-|---------------|--------|
-| Target values in input features? | ❌ No — inputs are only product attributes |
-| Train/test contamination? | ❌ No — proper stratified split |
-| Future information used? | ❌ No — all features exist before target calculation |
-| Deterministic formula-based relationship? | ✅ Yes — this explains the high accuracy |
-
-**The real value of the ML model:**
-
-| Use Case | Value |
-|----------|-------|
-| Replace the C calculator | Low — formulas are known |
-| **Handle missing data** | **High** — Robustness model maintains R² > 0.93 with 40% missing features |
-| Approximate footprints when exact composition unknown | High |
-| Simpler deployment (no C library needed) | Medium |
-| Feature importance analysis | Medium |
-
-**Key takeaway**: The baseline model memorizes the exact formulas, while the robustness model learns generalized patterns that work even when inputs are incomplete. For real-world applications where product data is often missing or approximate, the robustness model provides significant value.
+| Material | Carbon | Water |
+|----------|--------|-------|
+| Wool | 17.0 kgCO2e | 125,000 L |
+| Cashmere | 15.2 kgCO2e | 105,000 L |
+| Leather | 14.0 kgCO2e | 17,000 L |
+| Polyester (virgin) | 6.0 kgCO2e | 50 L |
+| Cotton | 5.5 kgCO2e | 10,000 L |
 
 
----
 
 ## Citation
 If you use this dataset or code in your research, please cite:
 
 ```bibtex
-@software{bulk_product_generator_2025,
-  author = {Moussa Ouallaf},
+@software{Avelero_HydroCarbo_V1,
+  author = {Moussa Ouallaf (Avelero BV.)},
   title = {Avelero Carbon Footprint HydroCarbo Calculator},
   year = {2025},
   url = {https://github.com/Avelero/Avelero_HydroCarbo},
