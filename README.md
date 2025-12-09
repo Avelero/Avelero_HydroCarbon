@@ -7,7 +7,7 @@
 
 An end-to-end pipeline for generating synthetic fashion product data and predicting environmental footprints using machine learning. This project addresses a critical gap in sustainability research: **the absence of large-scale, publicly available life cycle assessment (LCA) datasets for fashion products**. By combining LLM-generated synthetic data with physics-based footprint calculations, we create a robust training dataset for ML models that can predict carbon and water footprints even when product information is incomplete.
 
-> **Proof of Concept**: This project is a proof-of-concept demonstrating the feasibility of ML-based environmental footprint prediction for fashion products. A production-ready version with full **ISO 14040/14044** compliance (Life Cycle Assessment standards), **PEF** (Product Environmental Footprint) methodology, and expanded scope (Scope 1-3 emissions, end-of-life modeling) is currently in development.
+> **Proof of Concept**: This project is a proof-of-concept demonstrating the feasibility of ML-based environmental footprint prediction for fashion products and the usage of synthetic data. We accelerated this release in response to Nvidia's recent announcement regarding the importance of synthetic data probabilities. A production-ready version with full **ISO 14040/14044** compliance (Life Cycle Assessment standards), **PEF** (Product Environmental Footprint) methodology, and expanded scope (Scope 1-3 emissions, end-of-life modeling) is currently in development.
 
 ---
 
@@ -27,6 +27,7 @@ An end-to-end pipeline for generating synthetic fashion product data and predict
 
 **Reference:**
 - [Datasets](#datasets) — Data files and formats
+- [Project Structure](#project-structure) — Repository layout
 - [Installation](#installation) — Full dependency setup
 
 **Meta:**
@@ -617,8 +618,8 @@ trained_model/
 ## Quick Start
 ```bash
 # 1. Clone repository
-git clone https://github.com/yourusername/bulk_product_generator.git
-cd bulk_product_generator
+git clone https://github.com/Avelero/Avelero_HydroCarbon
+cd Avelero_HydroCarbon
 
 # 2. Install Git LFS (required for dataset files)
 git lfs install
@@ -759,51 +760,7 @@ make run
 ```
 
 **Calculation Methods**:
-
-#### Material Carbon Footprint
-```
-carbon_material = Σ (weight_kg × material_percentage × carbon_factor_kgCO2e)
-```
-
-Example: Cotton T-shirt (0.2 kg, 100% cotton, 5.5 kgCO2e/kg)
-```
-carbon_material = 0.2 × 1.0 × 5.5 = 1.1 kgCO2e
-```
-
-#### Transport Carbon Footprint
-Uses a **multinomial logit modal split model** to estimate transport mode probabilities:
-
-```
-Utility: U_m(D) = β0_m + β1_m × ln(D)
-Probability: P_m(D) = exp(U_m(D)) / Σ exp(U_k(D))
-Emissions: carbon_transport = (weight_kg / 1000) × distance_km × weighted_EF / 1000
-Weighted EF: weighted_EF = Σ P_m(D) × EF_m
-```
-
-Where:
-- `D` = transport distance (km)
-- `m` = transport mode (road, rail, sea, air, inland waterway)
-- `β0, β1` = model parameters (from `utility_attractiveness.csv`)
-- `EF_m` = emission factor for mode m (gCO2e/tkm)
-
-**Transport Modes and Emission Factors**:
-| Mode | EF (gCO2e/tkm) | Typical Use Case |
-|------|---------------|------------------|
-| Sea | 10.5 | Long-distance intercontinental |
-| Rail | 22.0 | Medium-distance continental |
-| Inland Waterway | 31.0 | River/canal transport |
-| Road | 62.0 | Last-mile delivery |
-| Air | 602.0 | Urgent/high-value items |
-
-#### Material Water Footprint
-```
-water_total = Σ (weight_kg × material_percentage × water_factor_liters)
-```
-
-Example: Cotton T-shirt (0.2 kg, 100% cotton, 10,000 L/kg)
-```
-water_total = 0.2 × 1.0 × 10,000 = 2,000 liters
-```
+See [Physics-Based Footprint Calculation](#physics-based-footprint-calculation) for detailed formulas and methodology.
 
 **Output**: `data/data_calculations/output/Product_data_with_footprints.csv`
 
