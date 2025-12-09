@@ -1,0 +1,64 @@
+{
+  "baseline": {
+    "carbon_material": {
+      "mae": 0.04482787343074196,
+      "rmse": 0.16558285981513318,
+      "r2": 0.9998590372084437,
+      "mape": 0.9819588855228456
+    },
+    "carbon_transport": {
+      "mae": 0.0013472910439115964,
+      "rmse": 0.0025750325311769055,
+      "r2": 0.9996807838745406,
+      "mape": 102163.31105780152
+    },
+    "carbon_total": {
+      "mae": 0.04992629283357427,
+      "rmse": 0.16841168003752127,
+      "r2": 0.9998551016025206,
+      "mape": 1.1748523207201627
+    },
+    "water_total": {
+      "mae": 132.92282971830835,
+      "rmse": 746.5296081608731,
+      "r2": 0.9996068207214942,
+      "mape": 1.123720052232293
+    },
+    "constraint_violation": 0.028593481904503327
+  },
+  "robustness": [
+    {
+      "missing_pct": 0.0,
+      "carbon_material_mae": 0.04482787343074196,
+      "carbon_material_r2": 0.9998590372084437,
+      "carbon_transport_mae": 0.0013472910439115964,
+      "carbon_transport_r2": 0.9996807838745406,
+      "carbon_total_mae": 0.04992629283357427,
+      "carbon_total_r2": 0.9998551016025207,
+      "water_total_mae": 132.92282971830835,
+      "water_total_r2": 0.9996068207214942
+    },
+    {
+      "missing_pct": 0.2,
+      "carbon_material_mae": 0.2852281837761792,
+      "carbon_material_r2": 0.9680412044095448,
+      "carbon_transport_mae": 0.006690250681865045,
+      "carbon_transport_r2": 0.9761140695153112,
+      "carbon_total_mae": 0.2931755287383774,
+      "carbon_total_r2": 0.9682587459460263,
+      "water_total_mae": 771.846671746977,
+      "water_total_r2": 0.9512507503674309
+    },
+    {
+      "missing_pct": 0.4,
+      "carbon_material_mae": 0.5268928474489523,
+      "carbon_material_r2": 0.935856037057419,
+      "carbon_transport_mae": 0.012082048664720069,
+      "carbon_transport_r2": 0.9521118280720309,
+      "carbon_total_mae": 0.5372058145567074,
+      "carbon_total_r2": 0.9364112479607312,
+      "water_total_mae": 1421.270474531755,
+      "water_total_r2": 0.901868905240284
+    }
+  ]
+}

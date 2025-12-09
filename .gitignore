@@ -49,3 +49,8 @@ data/data_correction/output/archives/
 *.temp
 *.bak
 *.log
+
+# LibreOffice/Excel lock files
+.~lock.*
+*.csv#
+*.xlsx#

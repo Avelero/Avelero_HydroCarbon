@@ -1,0 +1,291 @@
+================================================================================
+HYDROCARBON FOOTPRINT PREDICTOR - AVAILABLE INPUT VALUES
+================================================================================
+This file contains all valid input values that the model was trained on.
+Use these values for optimal prediction accuracy in your SaaS integration.
+
+================================================================================
+GENDER
+================================================================================
+Valid values:
+- Female
+- Male
+
+Note: The model was primarily trained on Female (~62%) and Male (~38%) data.
+
+================================================================================
+PARENT CATEGORY
+================================================================================
+Valid values:
+- Tops
+- Bottoms
+- Dresses
+- Outerwear
+- Footwear
+
+Sample counts from training data:
+- Tops: 169,376 samples
+- Outerwear: 165,759 samples
+- Bottoms: 159,919 samples
+- Footwear: 109,534 samples
+- Dresses: 70,193 samples
+
+================================================================================
+CATEGORY (by Parent Category)
+================================================================================
+
+TOPS:
+- Polos
+- Short Sleeve Shirts
+- Button-Ups
+- Long Sleeve Shirts
+- Sleeveless
+- Tank Tops
+- Blouses
+- Crop Tops
+- Bodysuits
+- Hoodies
+- Sweaters
+- Sweaters & Knitwear
+- Sweatshirts
+- Sweatshirts & Hoodies
+- Jerseys
+
+BOTTOMS:
+- Shorts
+- Leggings
+- Jeans
+- Sweatpants
+- Maxi Skirts
+- Sweatpants & Joggers
+- Midi Skirts
+- Casual Pants
+- Pants
+- Cropped Pants
+- Joggers
+- Mini Skirts
+- Denim
+
+DRESSES:
+- Jumpsuits
+- Maxi Dresses
+- Mini Dresses
+- Gowns
+- Midi Dresses
+- Swimwear
+
+OUTERWEAR:
+- Bombers
+- Denim Jackets
+- Leather Jackets
+- Vests
+- Heavy Coats
+- Blazers
+- Coats
+- Light Jackets
+- Fur & Faux Fur
+- Raincoats
+- Jackets
+- Down Jackets
+- Parkas
+- Rain Jackets
+- Cloaks & Capes
+
+FOOTWEAR:
+- Sandals
+- Casual Shoes
+- Sneakers
+- Athletic Shoes
+- Boots
+- Dress Shoes
+- Flats
+- Heels
+- Loafers
+
+================================================================================
+MANUFACTURER COUNTRY (ISO 3166-1 alpha-2 codes)
+================================================================================
+All 249 ISO country codes are supported. Common manufacturing countries include:
+
+Major Manufacturing Hubs:
+- CN (China)
+- BD (Bangladesh)
+- VN (Vietnam)
+- IN (India)
+- TR (Turkey)
+- ID (Indonesia)
+- PK (Pakistan)
+- KH (Cambodia)
+- MM (Myanmar)
+- TH (Thailand)
+
+European:
+- IT (Italy)
+- PT (Portugal)
+- ES (Spain)
+- DE (Germany)
+- FR (France)
+- GB (United Kingdom)
+- PL (Poland)
+- RO (Romania)
+
+Americas:
+- US (United States)
+- MX (Mexico)
+- BR (Brazil)
+- PE (Peru)
+- CO (Colombia)
+
+Full list of all supported country codes:
+AD, AE, AF, AG, AI, AL, AM, AO, AQ, AR, AS, AT, AU, AW, AX, AZ, BA, BB, BD, BE,
+BF, BG, BH, BI, BJ, BL, BM, BN, BO, BQ, BR, BS, BT, BV, BW, BY, BZ, CA, CC, CD,
+CF, CG, CH, CI, CK, CL, CM, CN, CO, CR, CU, CV, CW, CX, CY, CZ, DE, DJ, DK, DM,
+DO, DZ, EC, EE, EG, EH, ER, ES, ET, FI, FJ, FK, FM, FO, FR, GA, GB, GD, GE, GF,
+GG, GH, GI, GL, GM, GN, GP, GQ, GR, GS, GT, GU, GW, GY, HK, HM, HN, HR, HT, HU,
+ID, IE, IL, IM, IN, IO, IQ, IR, IS, IT, JE, JM, JO, JP, KE, KG, KH, KI, KM, KN,
+KP, KR, KW, KY, KZ, LA, LB, LC, LI, LK, LR, LS, LT, LU, LV, LY, MA, MC, MD, ME,
+MF, MG, MH, MK, ML, MM, MN, MO, MP, MQ, MR, MS, MT, MU, MV, MW, MX, MY, MZ, NC,
+NE, NF, NG, NI, NL, NO, NP, NR, NU, NZ, OM, PA, PE, PF, PG, PH, PK, PL, PM, PN,
+PR, PS, PT, PW, PY, QA, RE, RO, RS, RU, RW, SA, SB, SC, SD, SE, SG, SH, SI, SJ,
+SK, SL, SM, SN, SO, SR, SS, ST, SV, SX, SY, SZ, TC, TD, TF, TG, TH, TJ, TK, TL,
+TM, TN, TO, TR, TT, TV, TW, TZ, UA, UG, UM, US, UY, UZ, VA, VC, VE, VG, VI, VN,
+VU, WF, WS, YE, YT, ZA, ZM, ZW
+
+================================================================================
+MATERIALS
+================================================================================
+Format: JSON object with material names as keys and percentages (0-1) as values
+Example: {"cotton_conventional": 0.95, "elastane": 0.05}
+
+IMPORTANT: Percentages should sum to 1.0 (100%)
+
+Valid material names:
+- acrylic
+- cashmere
+- coated_fabric_pu
+- cotton_conventional
+- cotton_organic
+- cotton_recycled
+- down_feather
+- down_synthetic
+- elastane
+- eva
+- hemp
+- jute
+- leather_bovine
+- leather_ovine
+- leather_synthetic
+- linen_flax
+- lyocell_tencel
+- metal_brass
+- metal_gold
+- metal_silver
+- metal_steel
+- modal
+- natural_rubber
+- polyamide_6
+- polyamide_66
+- polyamide_recycled
+- polyester_recycled
+- polyester_virgin
+- rubber_synthetic
+- silk
+- tpu
+- viscose
+- wool_generic
+- wool_merino
+
+Common material aliases (use canonical name in API):
+- cotton → cotton_conventional
+- polyester → polyester_virgin
+- nylon → polyamide_6
+- spandex/lycra → elastane
+- tencel → lyocell_tencel
+- wool → wool_generic
+- leather → leather_bovine
+- down → down_feather
+- rubber → rubber_synthetic
+
+================================================================================
+WEIGHT (kg)
+================================================================================
+Range: 0.01 - 9.00 kg
+Typical values by category:
+- T-shirts, Blouses: 0.15 - 0.35 kg
+- Jeans, Pants: 0.40 - 0.80 kg
+- Jackets: 0.50 - 1.50 kg
+- Heavy Coats: 1.00 - 3.00 kg
+- Footwear: 0.30 - 1.50 kg
+- Accessories: 0.05 - 0.50 kg
+
+================================================================================
+TOTAL DISTANCE (km)
+================================================================================
+Range: 100 - 40,000 km
+This represents the total transport distance from manufacturing to end consumer.
+
+Typical values:
+- Local manufacturing (same country): 500 - 2,000 km
+- Regional (Europe to Europe): 1,000 - 4,000 km
+- Asia to Europe: 8,000 - 15,000 km
+- Asia to Americas: 12,000 - 20,000 km
+- Global supply chain with multiple stops: 15,000 - 40,000 km
+
+================================================================================
+OUTPUT VALUES
+================================================================================
+The model predicts 4 values:
+
+1. carbon_material (kgCO2e)
+   - Carbon footprint from material production
+   - Typical range: 0.1 - 50 kgCO2e
+   - Model accuracy: R² = 99.99%
+
+2. carbon_transport (kgCO2e)
+   - Carbon footprint from transportation
+   - Typical range: 0.001 - 1.0 kgCO2e
+   - Model accuracy: R² = 99.98%
+
+3. carbon_total (kgCO2e)
+   - Total carbon footprint (material + transport)
+   - Typical range: 0.1 - 51 kgCO2e
+   - Model accuracy: R² = 99.99%
+
+4. water_total (liters)
+   - Total water footprint from production
+   - Typical range: 10 - 50,000 liters
+   - Model accuracy: R² = 99.98%
+
+================================================================================
+API INTEGRATION EXAMPLE (JSON)
+================================================================================
+Request format:
+{
+  "product_name": "Classic Cotton T-Shirt",
+  "gender": "Male",
+  "parent_category": "Tops",
+  "category": "Short Sleeve Shirts",
+  "manufacturer_country": "BD",
+  "materials": {
+    "cotton_conventional": 0.95,
+    "elastane": 0.05
+  },
+  "weight_kg": 0.25,
+  "total_distance_km": 12000
+}
+
+Response format:
+{
+  "carbon_material": 0.234567,
+  "carbon_transport": 0.012345,
+  "carbon_total": 0.246912,
+  "water_total": 2285.50,
+  "accuracy": {
+    "carbon_material_r2": 0.9999,
+    "carbon_transport_r2": 0.9998,
+    "carbon_total_r2": 0.9999,
+    "water_total_r2": 0.9998
+  }
+}
+
+================================================================================

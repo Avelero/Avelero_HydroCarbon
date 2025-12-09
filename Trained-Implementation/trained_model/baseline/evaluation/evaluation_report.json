@@ -1,0 +1,64 @@
+{
+  "baseline": {
+    "carbon_material": {
+      "mae": 0.040930248585463756,
+      "rmse": 0.14555452453037457,
+      "r2": 0.999891075605767,
+      "mape": 0.8254390829221515
+    },
+    "carbon_transport": {
+      "mae": 0.0007813062681342073,
+      "rmse": 0.0018144872046932821,
+      "r2": 0.9998415007534709,
+      "mape": 13407.464205305758
+    },
+    "carbon_total": {
+      "mae": 0.044254356218133006,
+      "rmse": 0.14550035773000997,
+      "r2": 0.9998918448290897,
+      "mape": 0.9478704207089069
+    },
+    "water_total": {
+      "mae": 115.25266206757195,
+      "rmse": 570.5883630080651,
+      "r2": 0.9997703098519842,
+      "mape": 0.8144815511348867
+    },
+    "constraint_violation": 0.018195754915147556
+  },
+  "robustness": [
+    {
+      "missing_pct": 0.0,
+      "carbon_material_mae": 0.040930248585463756,
+      "carbon_material_r2": 0.999891075605767,
+      "carbon_transport_mae": 0.0007813062681342073,
+      "carbon_transport_r2": 0.999841500753471,
+      "carbon_total_mae": 0.044254356218133006,
+      "carbon_total_r2": 0.9998918448290897,
+      "water_total_mae": 115.25266206757196,
+      "water_total_r2": 0.9997703098519842
+    },
+    {
+      "missing_pct": 0.2,
+      "carbon_material_mae": 5.036037624448016,
+      "carbon_material_r2": 0.001413194763854449,
+      "carbon_transport_mae": 0.06302687307644268,
+      "carbon_transport_r2": -0.5076730299643988,
+      "carbon_total_mae": 4.1210991919013855,
+      "carbon_total_r2": 0.3062813745933451,
+      "water_total_mae": 7180.562074192632,
+      "water_total_r2": 0.5751683645746856
+    },
+    {
+      "missing_pct": 0.4,
+      "carbon_material_mae": 10.011555639496065,
+      "carbon_material_r2": -0.9913994819252961,
+      "carbon_transport_mae": 0.12524182592520935,
+      "carbon_transport_r2": -2.014043905681549,
+      "carbon_total_mae": 8.17436432548274,
+      "carbon_total_r2": -0.3798032902528697,
+      "water_total_mae": 14279.072220364122,
+      "water_total_r2": 0.14607589286282366
+    }
+  ]
+}
