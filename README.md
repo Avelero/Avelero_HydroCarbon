@@ -13,6 +13,9 @@ An end-to-end pipeline for generating synthetic fashion product data and predict
 
 ## Table of Contents
 
+**Quick Reference:**
+- [Project Structure](#project-structure) — Repository layout at a glance
+
 **Core Documentation:**
 - [Overview](#overview) — The problem, our solution, proof-of-concept status
 - [Synthetic Data Generation](#synthetic-data-generation) — LLM-powered product generation pipeline
@@ -26,7 +29,6 @@ An end-to-end pipeline for generating synthetic fashion product data and predict
 
 **Reference:**
 - [Datasets](#datasets) — Data files and formats
-- [Project Structure](#project-structure) — Repository layout
 - [Installation](#installation) — Full dependency setup
 
 **Meta:**
@@ -34,6 +36,40 @@ An end-to-end pipeline for generating synthetic fashion product data and predict
 - [License](#license) — MIT + third-party data licenses
 - [Acknowledgments](#acknowledgments) — Data sources and contributors
 
+---
+
+## Project Structure
+
+```
+bulk_product_generator/
+│
+├── README.md                         # This file
+├── LICENSE                           # MIT License
+├── .env.example                      # Environment variable template
+│
+├── datasets/                         # 📊 All datasets (Git LFS tracked)
+│   ├── raw/                          #    Original generated data
+│   ├── processed/                    #    Validated + footprint data
+│   ├── reference/                    #    Material & transport factors
+│   ├── splits/                       #    Train/validation splits
+│   └── model_outputs/                #    Predictions & metrics
+│
+├── data/                             # 🔧 Data processing pipeline
+│   ├── data_creation/                #    Product generation (Python + Gemini)
+│   ├── data_correction/              #    Validation & cleanup (Python)
+│   ├── data_calculations/            #    Footprint calculation (C)
+│   └── data_splitter/                #    Train/val splitting (Python)
+│
+├── models/                           # 🤖 ML training scripts
+│   ├── train_model.py                #    XGBoost training
+│   ├── evaluate_model.py             #    Model evaluation
+│   └── train_on_colab.ipynb          #    Colab notebook
+│
+└── Trained-Implementation/           # 📦 Pre-trained models
+    └── trained_model/
+        ├── baseline/                 #    R² = 0.9999 on complete data
+        └── robustness/               #    R² = 0.936 with 40% missing
+```
 
 ---
 
@@ -579,33 +615,6 @@ The XGBoost model **learns the calculation formulas**. This is analogous to trai
 | Simpler deployment | Medium — no C library needed |
 | Feature importance | Medium — insight into drivers |
 
----
-
-### When to Use Which Model
-
-```
-┌─────────────────────────────────────┐
-│   Do you have complete data?        │
-└──────────────┬──────────────────────┘
-               │
-       ┌───────┴───────┐
-       ▼               ▼
-      YES              NO
-       │               │
-       ▼               ▼
-┌──────────────┐ ┌──────────────────┐
-│  Use Direct  │ │ Use Robustness   │
-│ C Calculation│ │     Model        │
-│  (Exact)     │ │ (R² = 0.93-0.99) │
-└──────────────┘ └──────────────────┘
-```
-
-**Production Recommendations:**
-
-1. **E-commerce platforms** → Robustness model (users provide partial data)
-2. **Internal LCA tools** → Baseline model (complete data guaranteed)
-3. **Quick estimates** → Robustness model (fast approximation)
-4. **Legacy database analysis** → Robustness model (incomplete records)
 
 ---
 
@@ -904,150 +913,9 @@ Output Layer: 4 units (linear)
 
 ---
 
-## Training on Google Colab (GPU Acceleration)
-
-For faster model training with GPU acceleration, we provide a Colab notebook that handles the entire setup process automatically.
-
-### Why Use Colab?
-**Local Training Limitations:**
-- **CPU Training**: 676k samples on CPU takes ~6-8 hours
-- **Memory**: Large datasets may exceed laptop RAM
-- **Interruptions**: Long training sessions vulnerable to system crashes
-
-**Colab Advantages:**
-- **Free GPU Access**: Tesla T4 GPU accelerates training to ~2-4 minutes
-- **No Setup Required**: Pre-configured environment with all dependencies
-- **Cloud Storage**: Use Google Drive to store large CSV files
-- **Reproducible**: Same environment every time
-
-### Colab Notebook: `models/train_on_colab.ipynb`
-The notebook provides a complete training pipeline specifically designed for Colab's environment and constraints.
-
-#### Features
-
-1. **Automatic Setup**
-   - Clones latest code from GitHub (skips LFS files to save bandwidth)
-   - Mounts Google Drive for CSV file access
-   - Installs all Python dependencies
-   - Verifies GPU availability
-
-2. **Two Training Modes**
-   - **Baseline Only**: Maximum accuracy on complete data (R² = 0.9999)
-   - **With Robustness**: Also trains model with data augmentation for missing value handling
-
-3. **Smart Data Loading**
-   - Bypasses Git LFS bandwidth limits by loading CSVs from Google Drive
-   - Required files (~360 MB total):
-     - `train.csv` (269 MB, 676k products)
-     - `validate.csv` (90 MB, 225k products)
-     - `material_dataset_final.csv` (5 KB, 34 materials)
-
-4. **Comprehensive Evaluation**
-   - Tests models on clean data
-   - Simulates missing data scenarios (0%, 20%, 40% corruption)
-   - Generates robustness curves
-   - Saves detailed evaluation reports
-
-#### Usage Instructions
-
-**Step 1: Prepare Google Drive**
-
-Upload these 3 files to your Google Drive (e.g., `MyDrive/data/`):
-```
-/content/drive/MyDrive/data/
-├── train.csv              # From datasets/splits/train.csv
-├── validate.csv           # From datasets/splits/validate.csv
-└── material_dataset_final.csv  # From datasets/reference/
-```
-
-You can download these files directly from the GitHub repository (tracked with Git LFS).
-
-**Step 2: Open Colab Notebook**
-
-1. Go to [Google Colab](https://colab.research.google.com/)
-2. File → Open Notebook → GitHub
-3. Enter repository URL: `https://github.com/Avelero/Avelero_HydroCarbon`
-4. Select: `models/train_on_colab.ipynb`
-
-**Step 3: Enable GPU**
-
-1. Runtime → Change runtime type
-2. Hardware accelerator → **GPU**
-3. Save
-
-**Step 4: Configure Training**
-
-Edit the configuration cell:
-```python
-# Configuration
-QUICK_TEST = False  # True = 10K samples (~30 sec), False = 676K samples (~4 min)
-TRAIN_ROBUST = True  # True = train both baseline + robustness models
-```
-
-**Training Mode Options:**
-| Mode | What It Does | Training Time | Models Produced |
-|------|-------------|---------------|-----------------|
-| Baseline only | Max accuracy on complete data | ~2 min | 1 model (baseline) |
-| With robustness | Baseline + data augmentation | ~4 min | 2 models (baseline + robust) |
-| Quick test | 10K sample test run | ~30 sec | Testing only |
-
-**Step 5: Run Training**
-
-Execute all cells in order:
-
-1. **Cell 1**: Clone code & setup environment (~30 sec)
-   - Clones latest code from GitHub
-   - Mounts Google Drive
-   - Copies CSV files from Drive to Colab
-   - Installs dependencies
-
-2. **Cell 2**: Check GPU (~5 sec)
-   - Verifies GPU is available
-   - Shows GPU name and memory
-
-3. **Cell 3**: Train model (~2-4 min)
-   - Trains baseline model (R² = 0.9999)
-   - Optionally trains robustness model
-   - Evaluates on validation set
-   - Tests robustness to missing data
-
-4. **Cell 4**: View results (~instant)
-   - Displays final metrics
-   - Shows model locations
-
-5. **Cell 5**: Download models (optional)
-   - Creates ZIP file
-   - Downloads to local machine
-
-### Expected Results
-**Baseline Model (Complete Data):**
-```
-carbon_material:  R² = 0.9999, MAE = 0.04 kgCO2e
-carbon_transport: R² = 0.9998, MAE = 0.001 kgCO2e
-carbon_total:     R² = 0.9999, MAE = 0.04 kgCO2e
-water_total:      R² = 0.9998, MAE = 115 L
-```
-
-**Robustness Test (30% Missing Data):**
-| Model | Carbon R² | Water R² |
-|-------|-----------|----------|
-| Baseline (not trained for missing data) | ~0.30 | ~0.25 |
-| Robustness (trained with augmentation) | **~0.85** | **~0.80** |
-
-### Notebook Architecture
-The notebook internally calls the Python training script:
-```bash
-python train_max_accuracy.py [OPTIONS]
-```
-
-This allows the same training code to work both locally and on Colab, with the notebook handling:
-- Environment setup
-- Data loading from Google Drive
-- GPU configuration
-- Result visualization
-
 
 ### Downloading Trained Models
+
 After training, download models for local use:
 
 1. Run Cell 5 (Download Model)
@@ -1055,41 +923,142 @@ After training, download models for local use:
    ```
    trained_model/
    ├── baseline/
-   │   ├── xgb_model.json
-   │   ├── preprocessor.pkl
-   │   └── trainer_config.pkl
+   │   ├── xgb_model.json      # XGBoost model weights
+   │   ├── preprocessor.pkl    # Sklearn preprocessor (scalers, encoders)
+   │   └── trainer_config.pkl  # Feature names, target names, config
    └── robustness/
-       ├── xgb_model.json
-       ├── preprocessor.pkl
-       └── trainer_config.pkl
+       └── ... (same structure)
    ```
 
-3. Use in your own projects:
-   ```python
-   import joblib
-   import xgboost as xgb
+### Using the Trained Model
 
-   # Load model
-   model = xgb.Booster()
-   model.load_model('baseline/xgb_model.json')
+#### Required Input Features
 
-   # Load preprocessor
-   preprocessor = joblib.load('baseline/preprocessor.pkl')
-   ```
+To use the model, you must provide these features for each product:
 
-### Cost Considerations
-**Colab Free Tier:**
-- GPU runtime: Limited to ~12 hours per day
-- Our training: ~4 minutes per run
-- Sufficient for multiple experiments per day
+| Feature | Type | Description | Example |
+|---------|------|-------------|---------|
+| `gender` | categorical | Male, Female | "Female" |
+| `parent_category` | categorical | Tops, Bottoms, Outerwear, Footwear, Dresses | "Bottoms" |
+| `category` | categorical | Leaf category (86 options) | "Jeans" |
+| `weight_kg` | float | Product weight in kg | 0.934 |
+| `total_distance_km` | float | Transport distance in km | 12847 |
+| `cotton_conventional` | float | Material percentage (0-1) | 0.92 |
+| `elastane` | float | Material percentage (0-1) | 0.08 |
+| ... | ... | (34 material columns total, unused = 0) | ... |
 
-**Colab Pro (if needed):**
-- $9.99/month
-- Faster GPUs (V100, A100)
-- Longer runtime limits
-- Priority access
+**Important:** All 34 material columns must be present, even if most are 0. Material percentages must sum to 1.0.
 
-**Recommendation**: Free tier is perfectly adequate for this project.
+#### Complete Usage Example
+
+```python
+import joblib
+import xgboost as xgb
+import pandas as pd
+import numpy as np
+
+# 1. Load model and preprocessor
+model = xgb.Booster()
+model.load_model('robustness/xgb_model.json')
+preprocessor = joblib.load('robustness/preprocessor.pkl')
+config = joblib.load('robustness/trainer_config.pkl')
+
+# 2. Prepare input data (example product)
+product = {
+    'gender': 'Male',
+    'parent_category': 'Bottoms',
+    'category': 'Jeans',
+    'weight_kg': 0.934,
+    'total_distance_km': 12847,
+    # Material percentages (must sum to 1.0)
+    'cotton_conventional': 0.92,
+    'elastane': 0.08,
+    # All other materials = 0 (34 total columns required)
+}
+
+# Fill missing material columns with 0
+all_materials = config['material_columns']  # List of 34 material names
+for mat in all_materials:
+    if mat not in product:
+        product[mat] = 0.0
+
+# 3. Convert to DataFrame
+df = pd.DataFrame([product])
+
+# 4. Preprocess (applies one-hot encoding, scaling)
+X_processed = preprocessor.transform(df)
+
+# 5. Predict
+dmatrix = xgb.DMatrix(X_processed, feature_names=config['feature_names'])
+predictions = model.predict(dmatrix)
+
+# 6. Extract outputs
+carbon_material = predictions[0][0]   # kgCO2e
+carbon_transport = predictions[0][1]  # kgCO2e
+carbon_total = predictions[0][2]      # kgCO2e
+water_total = predictions[0][3]       # liters
+
+print(f"Carbon Material:  {carbon_material:.2f} kgCO2e")
+print(f"Carbon Transport: {carbon_transport:.2f} kgCO2e")
+print(f"Carbon Total:     {carbon_total:.2f} kgCO2e")
+print(f"Water Total:      {water_total:.0f} liters")
+```
+
+**Expected Output:**
+```
+Carbon Material:  1.22 kgCO2e
+Carbon Transport: 1.04 kgCO2e
+Carbon Total:     2.26 kgCO2e
+Water Total:      7868 liters
+```
+
+#### Preprocessing Details
+
+The `preprocessor.pkl` contains a scikit-learn `ColumnTransformer` that:
+
+1. **Categorical encoding**: One-hot encodes `gender`, `parent_category`, `category`
+2. **Numerical scaling**: StandardScaler on `weight_kg`, `total_distance_km`
+3. **Material passthrough**: Material percentages are passed through unchanged
+
+```
+Input (42 raw features)
+    ↓
+Preprocessor
+    ├── OneHotEncoder(gender)        → 2 columns
+    ├── OneHotEncoder(parent_cat)    → 5 columns
+    ├── OneHotEncoder(category)      → 86 columns
+    ├── StandardScaler(weight_kg)    → 1 column
+    ├── StandardScaler(distance_km)  → 1 column
+    └── Passthrough(materials)       → 34 columns
+    ↓
+Output (129 processed features)
+```
+
+#### Handling Missing Data with Robustness Model
+
+The robustness model was trained with 20% feature dropout, so it can handle missing inputs:
+
+```python
+# If you don't know the material composition:
+product = {
+    'gender': 'Female',
+    'parent_category': 'Tops',
+    'category': 'T-Shirts',
+    'weight_kg': 0.25,
+    'total_distance_km': 8500,
+    # Materials unknown → set all to 0 or use category defaults
+}
+
+# Fill all materials with 0 (model will infer from category)
+for mat in all_materials:
+    product[mat] = 0.0
+
+# Prediction will still work (R² ≈ 0.93-0.96 accuracy)
+```
+
+**When to use which model:**
+- **Baseline model**: Use when you have complete material data (R² = 0.9999)
+- **Robustness model**: Use when material data is missing/incomplete (R² = 0.93-0.96)
 
 ---
 
