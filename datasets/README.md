@@ -27,15 +27,15 @@ Original product data generated using Google Gemini API before any correction or
 
 #### `Product_data.csv`
 - **Description**: Main generated product dataset
-- **Rows**: ~100,000 fashion products
-- **Generation Method**: Google Gemini 1.5 Flash API with structured prompts
+- **Rows**: ~878,000 fashion products
+- **Generation Method**: Google Gemini 2.5 Flash API with structured prompts
 - **Use Case**: Starting point for data correction pipeline
 
 **Schema:**
 | Column | Type | Description | Example |
 |--------|------|-------------|---------|
 | `product_name` | string | Product name | "Boho Floral Print Maxi Skirt" |
-| `gender` | string | Target gender | "Female", "Male", "Unisex" |
+| `gender` | string | Target gender | "Female", "Male" |
 | `parent_category` | string | High-level category | "Tops", "Bottoms", "Outerwear" |
 | `category` | string | Specific product category | "Maxi Skirts", "T-Shirts", "Jackets" |
 | `manufacturer_country` | string | ISO 3166-1 alpha-2 country code | "CN", "IN", "BD" |
@@ -61,7 +61,7 @@ Cleaned, validated, and enriched product data ready for analysis and modeling.
 
 #### `Product_data_final.csv`
 - **Description**: Corrected product dataset after validation and cleanup
-- **Rows**: ~100,000 products (invalid entries removed)
+- **Rows**: ~902,000 products (invalid entries removed)
 - **Processing Steps**:
   1. Gender validation and correction
   2. Category hierarchy validation
@@ -74,7 +74,7 @@ Cleaned, validated, and enriched product data ready for analysis and modeling.
 **Schema:** Same as `Product_data.csv` (see Raw Data section)
 
 **Validation Rules:**
-- Gender: Must be "Female", "Male", or "Unisex"
+- Gender: Must be "Female" or "Male"
 - Categories: Must match predefined category hierarchy
 - Manufacturer country: Must be valid ISO 3166-1 alpha-2 code
 - Materials: JSON format, percentages sum to 1.0 ± 0.01
@@ -83,7 +83,7 @@ Cleaned, validated, and enriched product data ready for analysis and modeling.
 
 #### `Product_data_with_footprints.csv`
 - **Description**: Final dataset with calculated environmental footprints
-- **Rows**: ~100,000 products
+- **Rows**: ~902,000 products
 - **Processing**: Combines corrected product data with carbon and water footprint calculations
 - **Use Case**: Complete dataset for environmental impact analysis and ML modeling
 
@@ -116,7 +116,7 @@ Lookup tables and factors used for environmental footprint calculations.
 #### `material_dataset_final.csv`
 - **Description**: Material-level carbon and water footprint factors
 - **Source**: Idemat 2026 database + literature review
-- **Rows**: 47 fashion materials
+- **Rows**: 34 fashion materials
 - **Use Case**: Material footprint calculations
 
 **Schema:**
@@ -192,14 +192,14 @@ Where:
 Train and validation splits for machine learning model development.
 
 #### `train.csv`
-- **Description**: Training dataset (80% of total data)
-- **Rows**: ~80,000 products
+- **Description**: Training dataset (75% of total data)
+- **Rows**: ~676,000 products
 - **Split Method**: Random stratified split by category
 - **Schema**: Same as `Product_data_with_footprints.csv`
 
 #### `validate.csv`
-- **Description**: Validation dataset (20% of total data)
-- **Rows**: ~20,000 products
+- **Description**: Validation dataset (25% of total data)
+- **Rows**: ~225,000 products
 - **Split Method**: Random stratified split by category
 - **Schema**: Same as `Product_data_with_footprints.csv`
 
@@ -221,7 +221,7 @@ Standard neural network trained on complete data.
 
 ##### `baseline_predictions.csv`
 - **Description**: Model predictions on validation set
-- **Rows**: ~20,000 products
+- **Rows**: ~225,000 products
 - **Model**: Feed-forward neural network (3 layers, 128-64-32 units)
 - **Training**: 2000 epochs, Adam optimizer, MSE loss
 
@@ -320,7 +320,7 @@ ISO 3166-1 alpha-2 format (2-letter codes):
 ## Data Quality and Limitations
 
 ### Strengths
-- Large-scale dataset (100k products)
+- Large-scale dataset (900k products)
 - Realistic product attributes generated using state-of-the-art LLM
 - Scientifically validated footprint calculations
 - Well-documented data lineage
@@ -354,7 +354,7 @@ ISO 3166-1 alpha-2 format (2-letter codes):
   - URL: https://www.gov.uk/government/publications/greenhouse-gas-reporting-conversion-factors-2023
 
 ### Product Generation
-- **Google Gemini 1.5 Flash**: Large language model for product data generation
+- **Google Gemini 2.5 Flash**: Large language model for product data generation
   - URL: https://ai.google.dev/
 
 ---
@@ -363,7 +363,7 @@ ISO 3166-1 alpha-2 format (2-letter codes):
 
 ### Version 1.0 (2025-12-09)
 - Initial dataset release
-- 100,000 fashion products
+- 900,000 fashion products
 - Complete footprint calculations
 - Train/validation splits
 - Baseline and robustness model outputs

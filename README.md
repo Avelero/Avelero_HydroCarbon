@@ -41,7 +41,7 @@ The fashion industry is one of the most resource-intensive sectors globally, con
 3. **Calculate** environmental footprints (carbon and water) based on materials and transportation
 4. **Train** machine learning models to predict environmental impacts from product attributes
 
-The resulting dataset contains **100,000+ fashion products** with detailed environmental impact metrics, making it valuable for:
+The resulting dataset contains **900,000+ fashion products** with detailed environmental impact metrics, making it valuable for:
 - Sustainability research
 - Supply chain optimization
 - Environmental impact prediction models
@@ -52,10 +52,10 @@ The resulting dataset contains **100,000+ fashion products** with detailed envir
 ## Key Features
 
 ### Data Generation
-- **AI-Powered Generation**: Uses Google Gemini 1.5 Flash API to generate realistic product attributes
-- **Diverse Categories**: 50+ fashion categories (dresses, shirts, jackets, shoes, accessories)
-- **Realistic Materials**: 47 different materials with accurate composition percentages
-- **Global Manufacturing**: Products from 30+ countries with realistic transport distances
+- **AI-Powered Generation**: Uses Google Gemini 2.5 Flash API to generate realistic product attributes
+- **Diverse Categories**: 86 fashion categories (dresses, shirts, jackets, shoes, accessories)
+- **Realistic Materials**: 34 different materials with accurate composition percentages
+- **Global Manufacturing**: 277 countries (comprehensive global coverage) with realistic transport distances
 
 ### Environmental Analysis
 - **Carbon Footprint Calculation**:
@@ -89,8 +89,8 @@ The resulting dataset contains **100,000+ fashion products** with detailed envir
 ┌──────────────────┐
 │  1. GENERATION   │  Language: Python
 │  (Gemini API)    │  Input: Category definitions, material database
-├──────────────────┤  Output: ~100k raw products (CSV)
-│ - Product names  │  Tools: Google Gemini 1.5 Flash
+├──────────────────┤  Output: ~900k raw products (CSV)
+│ - Product names  │  Tools: Google Gemini 2.5 Flash
 │ - Categories     │
 │ - Materials      │
 │ - Weights        │
@@ -124,7 +124,7 @@ The resulting dataset contains **100,000+ fashion products** with detailed envir
 ┌──────────────────┐
 │  4. SPLITTING    │  Language: Python
 │  (Train/Val)     │  Input: Complete dataset
-├──────────────────┤  Output: 80/20 stratified splits
+├──────────────────┤  Output: 75/25 stratified splits
 │ - Stratified     │  Method: Random stratified by category
 │   by category    │
 │ - Reproducible   │
@@ -231,7 +231,7 @@ API_TIMEOUT = 30              # Request timeout (seconds)
 
 **Generated Fields**:
 - Product name (creative, realistic)
-- Gender (Female, Male, Unisex)
+- Gender (Female, Male)
 - Parent category (Tops, Bottoms, Outerwear, etc.)
 - Subcategory (Maxi Skirts, T-Shirts, Winter Jackets, etc.)
 - Manufacturing country (ISO 3166-1 alpha-2 code)
@@ -261,7 +261,7 @@ python scripts/cleanup/correct_data.py
 
 | Check | Rule | Action |
 |-------|------|--------|
-| Gender | Must be in {Female, Male, Unisex} | Correct or remove |
+| Gender | Must be in {Female, Male} | Correct or remove |
 | Categories | Must match predefined hierarchy | Validate against list |
 | Country Codes | Must be valid ISO 3166-1 alpha-2 | Validate or remove |
 | Materials | JSON format, sum = 1.0 ± 0.01 | Normalize or remove |
@@ -284,7 +284,7 @@ Calculate carbon and water footprints using validated reference data.
 
 **Location**: `data/data_calculations/`
 
-**Language**: C (for high-performance processing of 100k+ products)
+**Language**: C (for high-performance processing of 900k+ products)
 
 ```bash
 cd data/data_calculations
@@ -348,7 +348,7 @@ water_total = 0.2 × 1.0 × 10,000 = 2,000 liters
 
 **Output**: `data/data_calculations/output/Product_data_with_footprints.csv`
 
-**Performance**: Processes 100,000 products in ~5 seconds on modern hardware
+**Performance**: Processes 900,000 products in ~45 seconds on modern hardware
 
 ---
 
@@ -384,7 +384,7 @@ Embedding Layers (Categorical Variables)
 Concatenate with Numerical Features
     • weight_kg
     • total_distance_km
-    • material percentages (47 features)
+    • material percentages (34 features)
     ↓
 Dense Layer 1: 128 units, ReLU, Dropout(0.3)
     ↓
@@ -427,14 +427,14 @@ All datasets are organized in the `datasets/` directory and documented in detail
 
 | Dataset | Rows | Description | Path |
 |---------|------|-------------|------|
-| **Raw Products** | 100k | AI-generated product data | `datasets/raw/Product_data.csv` |
-| **Processed Products** | 100k | Validated product data | `datasets/processed/Product_data_final.csv` |
-| **Complete Dataset** | 100k | Products + footprints | `datasets/processed/Product_data_with_footprints.csv` |
-| **Material Reference** | 47 | Material footprint factors | `datasets/reference/material_dataset_final.csv` |
+| **Raw Products** | 878k | AI-generated product data | `datasets/raw/Product_data.csv` |
+| **Processed Products** | 902k | Validated product data | `datasets/processed/Product_data_final.csv` |
+| **Complete Dataset** | 902k | Products + footprints | `datasets/processed/Product_data_with_footprints.csv` |
+| **Material Reference** | 34 | Material footprint factors | `datasets/reference/material_dataset_final.csv` |
 | **Transport Reference** | 5 | Emission factors by mode | `datasets/reference/transport_emission_factors_generalised.csv` |
-| **Training Set** | 80k | 80% stratified split | `datasets/splits/train.csv` |
-| **Validation Set** | 20k | 20% stratified split | `datasets/splits/validate.csv` |
-| **Model Predictions** | 20k | Baseline model outputs | `datasets/model_outputs/baseline/baseline_predictions.csv` |
+| **Training Set** | 676k | 75% stratified split | `datasets/splits/train.csv` |
+| **Validation Set** | 225k | 25% stratified split | `datasets/splits/validate.csv` |
+| **Model Predictions** | 225k | Baseline model outputs | `datasets/model_outputs/baseline/baseline_predictions.csv` |
 | **Robustness Results** | varies | Performance under corruption | `datasets/model_outputs/*/robustness_results.csv` |
 
 **File Format**: All datasets are CSV files tracked with Git LFS
@@ -631,11 +631,11 @@ make run
 ### Dataset Statistics
 
 **Product Distribution**:
-- **Total Products**: 100,000
-- **Categories**: 50+ fashion categories
-- **Materials**: 47 unique materials
-- **Countries**: 30+ manufacturing countries
-- **Gender Distribution**: Female (60%), Male (30%), Unisex (10%)
+- **Total Products**: 901,571
+- **Categories**: 86 fashion categories
+- **Materials**: 34 unique materials
+- **Countries**: 277 countries (comprehensive global coverage)
+- **Gender Distribution**: Female (61.5%), Male (38.2%), Other (0.3%)
 
 **Environmental Footprints**:
 | Metric | Min | Mean | Median | Max | Unit |
@@ -684,10 +684,10 @@ make run
 
 | Operation | Dataset Size | Time | Hardware |
 |-----------|-------------|------|----------|
-| Data Generation | 10k products | ~45 min | API-limited |
-| Data Validation | 100k products | ~12 sec | Standard laptop |
-| Footprint Calculation | 100k products | ~5 sec | Standard laptop |
-| Model Training | 80k products | ~15 min | GPU (optional) |
+| Data Generation | 900k products | ~7 hours | API-limited |
+| Data Validation | 900k products | ~2 min | Standard laptop |
+| Footprint Calculation | 900k products | ~45 sec | Standard laptop |
+| Model Training | 676k products | ~2 hours | GPU (optional) |
 
 ---
 
@@ -717,7 +717,7 @@ make run
 ### 5. Data Science Portfolio
 - End-to-end data pipeline (generation → processing → modeling)
 - Multi-language project (Python + C)
-- Large-scale dataset (100k rows)
+- Large-scale dataset (900k rows)
 - Real-world problem (sustainability)
 
 ### 6. Kaggle Competitions
@@ -829,7 +829,7 @@ For questions, suggestions, or collaboration:
 
 ### v1.0.0 (2025-12-09)
 - Initial release
-- 100,000 product dataset
+- 900,000 product dataset
 - Complete footprint calculation pipeline
 - Baseline and robustness ML models
 - Comprehensive documentation
