@@ -13,8 +13,6 @@ An end-to-end pipeline for generating synthetic fashion product data and predict
 
 ## Table of Contents
 
-**Quick Reference:**
-- [Project Structure](#project-structure) — Repository layout at a glance
 
 **Core Documentation:**
 - [Overview](#overview) — The problem, our solution, proof-of-concept status
@@ -38,40 +36,6 @@ An end-to-end pipeline for generating synthetic fashion product data and predict
 
 ---
 
-## Project Structure
-
-```
-bulk_product_generator/
-│
-├── README.md                         # This file
-├── LICENSE                           # MIT License
-├── .env.example                      # Environment variable template
-│
-├── datasets/                         # 📊 All datasets (Git LFS tracked)
-│   ├── raw/                          #    Original generated data
-│   ├── processed/                    #    Validated + footprint data
-│   ├── reference/                    #    Material & transport factors
-│   ├── splits/                       #    Train/validation splits
-│   └── model_outputs/                #    Predictions & metrics
-│
-├── data/                             # 🔧 Data processing pipeline
-│   ├── data_creation/                #    Product generation (Python + Gemini)
-│   ├── data_correction/              #    Validation & cleanup (Python)
-│   ├── data_calculations/            #    Footprint calculation (C)
-│   └── data_splitter/                #    Train/val splitting (Python)
-│
-├── models/                           # 🤖 ML training scripts
-│   ├── train_model.py                #    XGBoost training
-│   ├── evaluate_model.py             #    Model evaluation
-│   └── train_on_colab.ipynb          #    Colab notebook
-│
-└── Trained-Implementation/           # 📦 Pre-trained models
-    └── trained_model/
-        ├── baseline/                 #    R² = 0.9999 on complete data
-        └── robustness/               #    R² = 0.936 with 40% missing
-```
-
----
 
 ## Overview
 
