@@ -77,31 +77,113 @@ Synthetic data is **artificially generated data** that mimics the statistical pr
 | **Availability** | Fashion LCA data is proprietary | Generate unlimited products |
 | **Completeness** | Often missing fields | All 8 attributes guaranteed |
 | **Scale** | Small datasets (100s-1000s) | 900,000 products |
-| **Cost** | Expensive to collect | ~$50 for entire dataset |
-| **Privacy** | Business-sensitive | No real products/brands |
+| **Cost** | Expensive to collect | XXX |
+| **Privacy** | Business-sensitive | XXX |
 
 ### How It Works (Simple Overview)
 
+The generation process follows a structured 4-step pipeline designed for **scalability**, **quality**, and **resilience**:
+
+#### Step 1: Define the Generation Space
+
+Before generating any products, we define the boundaries of realistic fashion products:
+
+| Component | Definition | Source |
+|-----------|------------|--------|
+| **Categories** | 86 leaf categories in hierarchical structure | `categories_rows.json` — curated from major fashion retailers |
+| **Materials** | 34 materials with known environmental factors | `material_dataset_final.csv` — from Idemat 2026 + literature |
+| **Countries** | 277 ISO 3166-1 alpha-2 country codes | Global manufacturing locations |
+| **Weight ranges** | Category-specific (0.12 kg underwear → 2.38 kg boots) | Industry standards |
+| **Distance ranges** | Route-based (520 km local → 23,800 km intercontinental) | Shipping logistics data |
+
+This controlled vocabulary ensures generated products are **plausible** and **calculable**.
+
+#### Step 2: Prompt Construction & API Calls
+
+Each API call generates products for a specific category with contextual guidance:
+
 ```
-1. DEFINE what to generate
-   └── 86 product categories (Jeans, T-Shirts, Sneakers, etc.)
-   └── 34 materials with known footprints (cotton, polyester, leather, etc.)
-   └── 277 manufacturing countries
+Input to Gemini:
+├── Category info: "Jeans (Gender: Male, Parent: Bottoms)"
+├── Suggested materials: ["cotton_conventional", "elastane", "hemp"]
+├── Weight guidance: "0.83-1.87 kg with natural variance (0.947, 1.234)"
+├── Distance guidance: "Asia to EU: 10,000-12,000 km"
+└── Format rules: CSV with 8 columns, JSON materials, no round numbers
 
-2. ASK Gemini to generate products
-   └── "Generate 5 realistic Jeans products with cotton/elastane materials..."
-   └── Gemini returns CSV rows with names, weights, materials, distances
-
-3. VALIDATE and save
-   └── Check all fields present and valid
-   └── Save to CSV incrementally
-   └── Checkpoint progress for resume capability
-
-4. CALCULATE footprints (separate step)
-   └── Apply material carbon/water factors
-   └── Calculate transport emissions
-   └── Add footprint columns to dataset
+Output from Gemini:
+└── Up to 1000 CSV rows per API call
 ```
+
+**High-throughput configuration:**
+- **Chunk size**: 1,000 products per API call
+- **Parallel workers**: 25 concurrent requests
+- **Rate limit**: 80% of 2,000 RPM = 1,600 effective RPM
+
+#### Step 3: Validation & Incremental Saving
+
+Every API response passes through validation before being saved:
+
+```
+API Response → Parse CSV → Validate Each Row → Append to File → Update Checkpoint
+                   │              │                   │               │
+                   ▼              ▼                   ▼               ▼
+              Handle quotes   Check 8 cols      Atomic write     Save progress
+              Fix JSON       Verify ranges      No duplicates    Resume-ready
+```
+
+**Resilience features:**
+- **Retry logic**: 3 attempts per chunk with error classification
+- **Rate limiting**: Token bucket at 90% capacity prevents quota exhaustion
+- **Checkpointing**: Progress saved after each chunk — can resume from any failure
+
+#### Example: Real Prompt & Output
+
+**Actual prompt sent to Gemini** (simplified for readability):
+
+```
+Generate 10 realistic fashion products as CSV data with natural, varied numeric values.
+
+CRITICAL FORMATTING REQUIREMENTS:
+1. Output MUST be valid CSV format with proper quoting
+2. Each row MUST have EXACTLY 8 fields (columns)
+3. All numeric values MUST have natural variance and precision
+4. NEVER use round numbers - use realistic decimals like 0.743, 1.267, 8456
+
+Generate EXACTLY 10 product(s) for EACH of these categories:
+  Jeans (Gender: Male, Parent: Bottoms, Suggested materials: cotton_conventional, elastane, hemp)
+
+Output CSV with this EXACT header (do NOT repeat this header in your output):
+product_name,gender,parent_category,category,manufacturer_country,materials,weight_kg,total_distance_km
+
+RULES:
+- product_name: Generate realistic product names
+- gender: "Male" or "Female" (based on category)
+- materials: JSON object, shares MUST sum to exactly 1.0
+  * Available: cotton_conventional, cotton_organic, elastane, hemp, polyester_virgin...
+- weight_kg: Heavy apparel 0.83-1.87 kg with natural variance (e.g., 0.947, 1.234)
+- total_distance_km: Intercontinental 10300-23800 km (e.g., 11764, 15428)
+- NO header repetition, NO explanations, ONLY data rows
+
+Output 10 CSV rows:
+```
+
+**Actual output from Gemini:**
+
+```csv
+"Relaxed Fit Carpenter Jeans",Male,Bottoms,Jeans,BD,"{""cotton_conventional"": 0.92, ""elastane"": 0.08}",0.934,12847.52
+"Slim Tapered Dark Wash Jeans",Male,Bottoms,Jeans,CN,"{""cotton_conventional"": 0.88, ""polyester_virgin"": 0.07, ""elastane"": 0.05}",0.876,10234.89
+"Classic Straight Leg Jeans",Male,Bottoms,Jeans,VN,"{""cotton_organic"": 0.75, ""hemp"": 0.20, ""elastane"": 0.05}",0.912,11456.23
+"Distressed Skinny Jeans",Male,Bottoms,Jeans,TR,"{""cotton_conventional"": 0.95, ""elastane"": 0.05}",0.847,8934.67
+"Loose Fit Workwear Jeans",Male,Bottoms,Jeans,IN,"{""cotton_conventional"": 0.82, ""hemp"": 0.15, ""elastane"": 0.03}",1.023,11823.41
+"Athletic Stretch Jeans",Male,Bottoms,Jeans,PK,"{""cotton_conventional"": 0.78, ""polyester_virgin"": 0.17, ""elastane"": 0.05}",0.789,12156.78
+"Vintage Wash Bootcut Jeans",Male,Bottoms,Jeans,BD,"{""cotton_conventional"": 0.90, ""elastane"": 0.10}",0.956,13247.34
+"Raw Selvedge Denim Jeans",Male,Bottoms,Jeans,JP,"{""cotton_organic"": 0.98, ""elastane"": 0.02}",1.134,9823.56
+"Comfort Fit Dad Jeans",Male,Bottoms,Jeans,CN,"{""cotton_conventional"": 0.85, ""polyester_virgin"": 0.10, ""elastane"": 0.05}",0.923,10567.89
+"Slim Straight Indigo Jeans",Male,Bottoms,Jeans,VN,"{""cotton_conventional"": 0.88, ""elastane"": 0.12}",0.867,11234.56
+```
+
+**Note:** Each row has natural variance in weights (0.789-1.134 kg), realistic distances based on country, and material compositions that sum to exactly 1.0.
+
 
 ### Architecture Overview
 
