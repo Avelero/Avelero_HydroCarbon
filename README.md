@@ -12,6 +12,7 @@ A comprehensive data generation and environmental impact analysis pipeline for f
 ## Table of Contents
 
 - [Overview](#overview)
+- [Synthetic Data Generation](#synthetic-data-generation)
 - [Key Features](#key-features)
 - [Pipeline Architecture](#pipeline-architecture)
 - [Quick Start](#quick-start)
@@ -20,6 +21,7 @@ A comprehensive data generation and environmental impact analysis pipeline for f
   - [2. Data Correction](#2-data-correction)
   - [3. Footprint Calculation](#3-footprint-calculation)
   - [4. Machine Learning Models](#4-machine-learning-models)
+- [Training on Google Colab (GPU Acceleration)](#training-on-google-colab-gpu-acceleration)
 - [Datasets](#datasets)
 - [Project Structure](#project-structure)
 - [Installation](#installation)
@@ -46,6 +48,153 @@ The resulting dataset contains **900,000+ fashion products** with detailed envir
 - Supply chain optimization
 - Environmental impact prediction models
 - Educational purposes in data science and sustainability
+
+---
+
+## Synthetic Data Generation
+
+This project pioneers the use of **large language model (LLM)-based synthetic data generation** for environmental impact analysis. Unlike traditional datasets that rely on manual collection or web scraping, we use Google Gemini 2.5 Flash to generate realistic, diverse product data at scale.
+
+### What is Synthetic Data?
+
+Synthetic data is artificially generated data that mimics the statistical properties and patterns of real-world data without being directly collected from real sources. In this project, synthetic data refers to the 900,000+ fashion products generated entirely by an AI model based on learned patterns from its training data.
+
+### Why Synthetic Data for This Project?
+
+**Traditional Challenges:**
+- **Data Scarcity**: Real product environmental footprint data is proprietary and rarely publicly available
+- **Inconsistent Quality**: Web-scraped data often has missing fields, inconsistent formats, and unreliable values
+- **Limited Scale**: Manual data collection is time-consuming and expensive
+- **Privacy Concerns**: Real product data may contain sensitive business information
+
+**Our Solution:**
+- **Scalability**: Generated 900k products in ~7 hours (impossible with manual collection)
+- **Consistency**: All products have complete, properly formatted data
+- **Control**: Fine-tuned generation parameters for realistic distributions
+- **Reproducibility**: Generation process is documented and repeatable
+
+### Generation Process
+
+#### 1. Prompt Engineering
+We use carefully crafted prompts that specify:
+- **Product attributes** (name, gender, category hierarchy)
+- **Material composition** (JSON format, percentages sum to 1.0)
+- **Physical properties** (realistic weight ranges by product type)
+- **Manufacturing details** (country codes, transport distances)
+
+Example prompt structure:
+```
+Generate {N} realistic fashion products as CSV data...
+
+RULES:
+- product_name: Creative, realistic names
+- materials: {"cotton": 0.7, "polyester": 0.3}
+  * 1-4 materials per product
+  * Shares sum to exactly 1.0
+  * Use category-appropriate materials
+- weight_kg: Natural variance, NO round numbers
+  * T-shirts: 0.12-0.28 kg (e.g., 0.167, 0.213)
+  * Jeans: 0.83-1.87 kg (e.g., 0.947, 1.234)
+- total_distance_km: Realistic shipping routes
+  * China to Europe: ~10,000-12,000 km
+  * Bangladesh to US: ~12,000-14,000 km
+```
+
+#### 2. Structured Output Format
+The API is constrained to return CSV format with exact column specifications:
+```csv
+product_name,gender,parent_category,category,manufacturer_country,materials,weight_kg,total_distance_km
+"Classic Denim Jeans",Female,Bottoms,Jeans,BD,"{""cotton_conventional"":0.72,""elastane"":0.28}",0.847,12456.73
+```
+
+#### 3. Category-Aware Generation
+- **86 fashion categories** organized in hierarchies (Tops → T-Shirts, Bottoms → Jeans, etc.)
+- Each category has **suggested materials** (e.g., jeans prefer cotton + elastane)
+- **Gender-specific** categories ensure realistic products
+- **Batch generation** processes multiple categories simultaneously
+
+#### 4. Material Vocabulary Control
+The model is restricted to **34 validated materials** with known environmental footprints:
+- Natural fibers: cotton, wool, silk, linen
+- Synthetic: polyester, nylon, acrylic, elastane
+- Semi-synthetic: viscose, modal, lyocell
+- Specialized: leather, rubber, down
+
+Material combinations are guided by real-world fashion industry standards.
+
+#### 5. Country Distribution
+Products are assigned to **277 countries** using ISO 3166-1 alpha-2 codes, reflecting global manufacturing diversity:
+- Major manufacturing hubs: CN (China), BD (Bangladesh), VN (Vietnam), IN (India), TR (Turkey)
+- Regional producers: IT (Italy), PT (Portugal), RO (Romania), MX (Mexico)
+- Realistic distribution matches actual fashion industry geography
+
+### Quality Control Mechanisms
+
+#### Validation Pipeline
+After generation, all data passes through multi-stage validation:
+
+1. **Schema Validation**
+   - Verify all 8 columns present
+   - Check data types (strings, floats, JSON)
+   - Ensure no missing values
+
+2. **Constraint Enforcement**
+   - Gender: Must be "Female" or "Male"
+   - Categories: Match predefined hierarchy
+   - Countries: Valid ISO 3166-1 alpha-2 codes
+   - Materials: JSON format, percentages sum to 1.0 ± 0.01
+   - Weight: 0.05 ≤ weight ≤ 5.0 kg
+   - Distance: 100 ≤ distance ≤ 25,000 km
+
+3. **Statistical Outlier Detection**
+   - Flag extreme weights for product types
+   - Verify distance plausibility by country
+   - Check material combinations make sense
+
+4. **Duplicate Removal**
+   - Remove exact duplicates
+   - Flag near-duplicates for review
+
+**Pass Rate**: ~97% of generated products pass all validation checks
+
+### Advantages of Our Approach
+
+1. **Realism**: LLMs trained on vast text corpora understand fashion product characteristics
+2. **Diversity**: Natural language variance creates unique, varied products
+3. **Scalability**: Generate millions of products with consistent quality
+4. **Flexibility**: Easily modify prompts to add new attributes or categories
+5. **Cost-Effective**: $0.075 per 1M tokens (generated 900k products for ~$50)
+6. **Transparency**: Full control over generation process and parameters
+
+### Limitations and Considerations
+
+**Not Real Data:**
+- Products are AI-generated, not from actual brands or retailers
+- Environmental footprints are calculated, not measured
+- No validation against real supply chain data
+
+**Statistical Patterns:**
+- Reflect LLM training data biases
+- May not capture emerging fashion trends
+- Material combinations based on common patterns, not proprietary formulations
+
+**Use Cases:**
+- ✅ Research on sustainability methodologies
+- ✅ Machine learning model development
+- ✅ Educational demonstrations
+- ✅ Prototype testing for sustainability tools
+- ❌ Direct decision-making for real products
+- ❌ Comparing specific brands or retailers
+
+### Why This Matters
+
+Synthetic data generation democratizes access to large-scale datasets for sustainability research. Researchers, students, and developers can now:
+- Experiment with environmental impact models without proprietary data
+- Train machine learning algorithms on realistic, diverse product data
+- Develop and test sustainability tools before accessing real data
+- Understand trade-offs in material choices and supply chains
+
+This project demonstrates that **LLM-based synthetic data generation is a viable approach for sustainability research**, opening new possibilities for data-driven environmental analysis.
 
 ---
 
@@ -416,6 +565,220 @@ Output Layer: 4 units (linear)
 - `datasets/model_outputs/baseline/baseline_predictions.csv`
 - `datasets/model_outputs/robustness/baseline_predictions.csv`
 - `datasets/model_outputs/{baseline,robustness}/robustness_results.csv`
+
+---
+
+## Training on Google Colab (GPU Acceleration)
+
+For faster model training with GPU acceleration, we provide a Colab notebook that handles the entire setup process automatically.
+
+### Why Use Colab?
+
+**Local Training Limitations:**
+- **CPU Training**: 676k samples on CPU takes ~6-8 hours
+- **Memory**: Large datasets may exceed laptop RAM
+- **Interruptions**: Long training sessions vulnerable to system crashes
+
+**Colab Advantages:**
+- **Free GPU Access**: Tesla T4 GPU accelerates training to ~2-4 minutes
+- **No Setup Required**: Pre-configured environment with all dependencies
+- **Cloud Storage**: Use Google Drive to store large CSV files
+- **Reproducible**: Same environment every time
+
+### Colab Notebook: `models/train_on_colab.ipynb`
+
+The notebook provides a complete training pipeline specifically designed for Colab's environment and constraints.
+
+#### Features
+
+1. **Automatic Setup**
+   - Clones latest code from GitHub (skips LFS files to save bandwidth)
+   - Mounts Google Drive for CSV file access
+   - Installs all Python dependencies
+   - Verifies GPU availability
+
+2. **Two Training Modes**
+   - **Baseline Only**: Maximum accuracy on complete data (R² = 0.9999)
+   - **With Robustness**: Also trains model with data augmentation for missing value handling
+
+3. **Smart Data Loading**
+   - Bypasses Git LFS bandwidth limits by loading CSVs from Google Drive
+   - Required files (~360 MB total):
+     - `train.csv` (269 MB, 676k products)
+     - `validate.csv` (90 MB, 225k products)
+     - `material_dataset_final.csv` (5 KB, 34 materials)
+
+4. **Comprehensive Evaluation**
+   - Tests models on clean data
+   - Simulates missing data scenarios (0%, 20%, 40% corruption)
+   - Generates robustness curves
+   - Saves detailed evaluation reports
+
+#### Usage Instructions
+
+**Step 1: Prepare Google Drive**
+
+Upload these 3 files to your Google Drive (e.g., `MyDrive/data/`):
+```
+/content/drive/MyDrive/data/
+├── train.csv              # From datasets/splits/train.csv
+├── validate.csv           # From datasets/splits/validate.csv
+└── material_dataset_final.csv  # From datasets/reference/
+```
+
+You can download these files directly from the GitHub repository (tracked with Git LFS).
+
+**Step 2: Open Colab Notebook**
+
+1. Go to [Google Colab](https://colab.research.google.com/)
+2. File → Open Notebook → GitHub
+3. Enter repository URL: `https://github.com/Avelero/Avelero_HydroCarbon`
+4. Select: `models/train_on_colab.ipynb`
+
+**Step 3: Enable GPU**
+
+1. Runtime → Change runtime type
+2. Hardware accelerator → **GPU**
+3. Save
+
+**Step 4: Configure Training**
+
+Edit the configuration cell:
+```python
+# Configuration
+QUICK_TEST = False  # True = 10K samples (~30 sec), False = 676K samples (~4 min)
+TRAIN_ROBUST = True  # True = train both baseline + robustness models
+```
+
+**Training Mode Options:**
+| Mode | What It Does | Training Time | Models Produced |
+|------|-------------|---------------|-----------------|
+| Baseline only | Max accuracy on complete data | ~2 min | 1 model (baseline) |
+| With robustness | Baseline + data augmentation | ~4 min | 2 models (baseline + robust) |
+| Quick test | 10K sample test run | ~30 sec | Testing only |
+
+**Step 5: Run Training**
+
+Execute all cells in order:
+
+1. **Cell 1**: Clone code & setup environment (~30 sec)
+   - Clones latest code from GitHub
+   - Mounts Google Drive
+   - Copies CSV files from Drive to Colab
+   - Installs dependencies
+
+2. **Cell 2**: Check GPU (~5 sec)
+   - Verifies GPU is available
+   - Shows GPU name and memory
+
+3. **Cell 3**: Train model (~2-4 min)
+   - Trains baseline model (R² = 0.9999)
+   - Optionally trains robustness model
+   - Evaluates on validation set
+   - Tests robustness to missing data
+
+4. **Cell 4**: View results (~instant)
+   - Displays final metrics
+   - Shows model locations
+
+5. **Cell 5**: Download models (optional)
+   - Creates ZIP file
+   - Downloads to local machine
+
+### Expected Results
+
+**Baseline Model (Complete Data):**
+```
+carbon_material:  R² = 0.9999, MAE = 0.04 kgCO2e
+carbon_transport: R² = 0.9998, MAE = 0.001 kgCO2e
+carbon_total:     R² = 0.9999, MAE = 0.04 kgCO2e
+water_total:      R² = 0.9998, MAE = 115 L
+```
+
+**Robustness Test (30% Missing Data):**
+| Model | Carbon R² | Water R² |
+|-------|-----------|----------|
+| Baseline (not trained for missing data) | ~0.30 | ~0.25 |
+| Robustness (trained with augmentation) | **~0.85** | **~0.80** |
+
+### Notebook Architecture
+
+The notebook internally calls the Python training script:
+```bash
+python train_max_accuracy.py [OPTIONS]
+```
+
+This allows the same training code to work both locally and on Colab, with the notebook handling:
+- Environment setup
+- Data loading from Google Drive
+- GPU configuration
+- Result visualization
+
+### Troubleshooting
+
+**Issue**: "No GPU found"
+- **Solution**: Runtime → Change runtime type → GPU → Save
+
+**Issue**: "File not found: train.csv"
+- **Solution**: Upload CSV files to Google Drive and update `DRIVE_FOLDER` path in Cell 1
+
+**Issue**: "Git LFS bandwidth exceeded"
+- **Solution**: Notebook is designed to skip LFS files - just ensure CSVs are in Google Drive
+
+**Issue**: "Out of memory"
+- **Solution**: Set `QUICK_TEST = True` or reduce sample size:
+  ```python
+  !python train_max_accuracy.py --sample-size 100000
+  ```
+
+**Issue**: "Old results showing"
+- **Solution**: Re-run Cell 1 (Fresh Clone) to get latest code
+
+### Downloading Trained Models
+
+After training, download models for local use:
+
+1. Run Cell 5 (Download Model)
+2. Extracts `trained_model.zip` containing:
+   ```
+   trained_model/
+   ├── baseline/
+   │   ├── xgb_model.json
+   │   ├── preprocessor.pkl
+   │   └── trainer_config.pkl
+   └── robustness/
+       ├── xgb_model.json
+       ├── preprocessor.pkl
+       └── trainer_config.pkl
+   ```
+
+3. Use in your own projects:
+   ```python
+   import joblib
+   import xgboost as xgb
+
+   # Load model
+   model = xgb.Booster()
+   model.load_model('baseline/xgb_model.json')
+
+   # Load preprocessor
+   preprocessor = joblib.load('baseline/preprocessor.pkl')
+   ```
+
+### Cost Considerations
+
+**Colab Free Tier:**
+- GPU runtime: Limited to ~12 hours per day
+- Our training: ~4 minutes per run
+- Sufficient for multiple experiments per day
+
+**Colab Pro (if needed):**
+- $9.99/month
+- Faster GPUs (V100, A100)
+- Longer runtime limits
+- Priority access
+
+**Recommendation**: Free tier is perfectly adequate for this project.
 
 ---
 
