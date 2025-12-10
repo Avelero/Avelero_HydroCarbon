@@ -420,44 +420,38 @@ Real-world data often has:
 | **Baseline** | Standard training | R² = 0.9999 | R² = -0.991 | Maximum accuracy when all data available |
 | **Robustness** | 20% feature dropout | R² = 0.9999 | R² = 0.936 | Production with incomplete data |
 
----
-
 ### Model Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       XGBoost Multi-Output Regressor                         │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  Input Features (42 total):                                                 │
-│  ├── Categorical (one-hot encoded):                                        │
-│  │   ├── gender (2 values)                                                  │
-│  │   ├── parent_category (5 values)                                         │
-│  │   └── category (86 values)                                               │
-│  ├── Numerical:                                                              │
-│  │   ├── weight_kg                                                          │
-│  │   └── total_distance_km                                                  │
-│  └── Material Percentages (34):                                              │
-│      ├── cotton_conventional, cotton_organic, cotton_recycled               │
-│      ├── polyester_virgin, polyester_recycled, polyamide_6, ...             │
-│      └── leather_bovine, wool_merino, silk, down_duck, ...                  │
-│                                                                              │
-│  XGBoost Configuration:                                                      │
-│  ├── n_estimators: 1000                                                      │
-│  ├── max_depth: 8                                                            │
-│  ├── learning_rate: 0.05                                                     │
-│  ├── subsample: 0.8                                                          │
-│  ├── colsample_bytree: 0.8                                                   │
-│  ├── early_stopping_rounds: 50                                               │
-│  └── device: cuda (GPU accelerated)                                          │
-│                                                                              │
-│  Target Outputs (4):                                                         │
-│  ├── carbon_material (kgCO2e)                                               │
-│  ├── carbon_transport (kgCO2e)                                              │
-│  ├── carbon_total (kgCO2e)                                                  │
-│  └── water_total (liters)                                                   │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+XGBoost Multi-Output Regressor
+
+Input Features (129 total after encoding):
+
+A. Contextual Features (93) — "The Statistical Path"
+├── gender (2 one-hot)
+├── parent_category (5 one-hot)
+└── category (86 one-hot)
+    ↳ Critical for implicit imputation when physics data is missing
+
+B. Physics Features (36) — "The Physics Path"
+├── weight_kg (1)
+├── total_distance_km (1)
+└── material_percentages (34)
+
+XGBoost Configuration:
+├── n_estimators: 1000
+├── max_depth: 8
+├── learning_rate: 0.05
+├── subsample: 0.8
+├── colsample_bytree: 0.8
+├── early_stopping_rounds: 50
+└── device: cuda (GPU accelerated)
+
+Target Outputs (4):
+├── carbon_material (kgCO2e)
+├── carbon_transport (kgCO2e)
+├── carbon_total (kgCO2e)
+└── water_total (liters)
 ```
 
 ---
@@ -474,21 +468,49 @@ Real-world data often has:
 
 ---
 
-### How Feature Dropout Works
+### How the Model Learns Robustness (Technical Deep Dive)
 
-During robustness training, we randomly set 20% of features to 0 for each sample:
+The model's robustness is not accidental; it is engineered through a **Hybrid Physics-ML Architecture** that explicitly bridges deterministic calculation and statistical inference.
+
+#### 1. Physics-Informed Feature Injection ("The Short-Circuit")
+We do not wait for the model to "discover" the laws of physics. During preprocessing, we calculate the theoretical footprint using available data and inject it as a feature:
 
 ```python
-def apply_feature_dropout(X, dropout_rate=0.2):
-    mask = np.random.random(X.shape) > dropout_rate
-    return X * mask  # Masked features become 0
+# Feature Engineering Step
+X['formula_feature'] = weight * Σ(material_pct * emission_factor)
 ```
 
-**This forces the model to:**
+- **High Information Gain**: This feature has a near-perfect correlation with the target.
+- **The "Short-Circuit"**: The XGBoost trees greedily select this feature as the root node. If the data exists, the model effectively "short-circuits" to the correct answer immediately, bypassing complex approximations.
 
-1. **Learn redundant patterns**: If `cotton_conventional` is masked, infer from `category=Jeans`
-2. **Use feature correlations**: Heavy products from certain countries → higher footprints
-3. **Not over-rely on any single feature**: Predictions remain stable under partial information
+#### 2. Native Branching for Missing Values ("The Fallback")
+XGBoost handles missing values (`NaN`) by learning a default direction at each split. We leverage this to create a **dual-path decision structure**:
+
+```mermaid
+graph TD
+    Root{Is Formula Available?}
+    Root -->|Yes| PathA[Physics Path]
+    Root -->|No| PathB[Statistical Path]
+    
+    PathA --> Leaf1[Output = Formula Result]
+    
+    PathB --> Split1{Category?}
+    Split1 -->|Jeans| Split2{Gender?}
+    Split1 -->|T-Shirt| Split3{Material?}
+    
+    Split2 -->|Male| Leaf2[~1.2 kgCO2e]
+    Split2 -->|Female| Leaf3[~0.9 kgCO2e]
+```
+
+- **Path A (Physics Path)**: When inputs are complete, `formula_feature` is valid. The model uses it directly. **Result: R² ≈ 1.0**
+- **Path B (Statistical Path)**: When inputs are missing, `formula_feature` is `NaN`. The model automatically routes the sample to a branch that splits on the **93 contextual features** (Category, Parent Category, Gender etc).
+
+#### 3. Implicit Imputation
+Instead of filling missing values with a global mean (e.g., "average weight = 0.5kg"), the Statistical Path performs **context-aware implicit imputation**. It learns that:
+- *Missing weight* for a "Winter Jacket" (Parent: Outerwear) should be treated as ~1.5kg.
+- *Missing weight* for a "Silk Scarf" (Parent: Accessories) should be treated as ~0.1kg.
+
+**Result**: A single model that transitions smoothly from **exact calculator** (when data allows) to **smart estimator** (when data is missing).
 
 ---
 
@@ -614,6 +636,99 @@ trained_model/
 ```
 
 ---
+
+## Installation
+
+### Prerequisites
+**Required:**
+- Python 3.9+
+- GCC (C11 support)
+- Make
+- Git LFS
+
+**Python Libraries** (see `requirements.txt`):
+- google-generativeai
+- pandas
+- numpy
+- tensorflow/keras
+- scikit-learn
+- python-dotenv
+
+**C Libraries**:
+- libm (math library, usually included)
+- Standard C library
+
+---
+
+
+## Project Structure
+```
+bulk_product_generator/
+│
+├── README.md                         # This file
+├── LICENSE                           # Project license
+├── .gitignore                        # Git exclusions
+├── .gitattributes                    # Git LFS configuration
+├── .env.example                      # Environment variable template
+│
+├── datasets/                         # Organized datasets (Git LFS)
+│   ├── README.md                     # Dataset documentation
+│   ├── raw/                          # Original generated data
+│   ├── processed/                    # Validated + footprint data
+│   ├── reference/                    # Material & transport factors
+│   ├── splits/                       # Train/validation splits
+│   └── model_outputs/                # Model predictions & metrics
+│       ├── baseline/
+│       └── robustness/
+│
+├── data/                             # Data processing modules
+│   ├── data_creation/                # Product generation (Python)
+│   │   ├── config/                   # Configuration files
+│   │   ├── data/                     # Input category definitions
+│   │   ├── scripts/                  # Executable scripts
+│   │   ├── fashion_generator/        # Core generator module
+│   │   ├── output/                   # Generated outputs
+│   │   └── requirements.txt          # Python dependencies
+│   │
+│   ├── data_correction/              # Data validation (Python)
+│   │   ├── scripts/
+│   │   │   ├── validation/           # Schema validation
+│   │   │   ├── cleanup/              # Data correction
+│   │   │   └── analysis/             # Data analysis
+│   │   ├── input/                    # Input files
+│   │   └── output/                   # Corrected outputs
+│   │
+│   ├── data_calculations/            # Footprint calculation (C)
+│   │   ├── src/
+│   │   │   ├── carbon/               # Carbon calculators
+│   │   │   ├── water/                # Water calculators
+│   │   │   ├── utils/                # CSV/JSON parsers
+│   │   │   └── footprint_calculator.c
+│   │   ├── include/                  # Header files
+│   │   ├── build/                    # Compiled binaries
+│   │   ├── input/                    # Input data
+│   │   ├── output/                   # Output data
+│   │   ├── Makefile                  # Build system
+│   │   └── README.md                 # Module documentation
+│   │
+│   └── data_splitter/                # Train/val splitting (Python)
+│       └── output/                   # Split outputs
+│
+├── models/                           # ML model training (Python)
+│   ├── train_model.py                # Training script
+│   ├── evaluate_model.py             # Evaluation script
+│   └── data_input/                   # Model input data
+│
+└── Trained-Implementation/           # Trained models & results
+    └── trained_model/
+        ├── baseline/                 # Baseline model
+        │   └── evaluation/
+        └── robustness/               # Robustness model
+            └── evaluation/
+```
+
+---
+
 
 ## Quick Start
 ```bash
@@ -1009,186 +1124,6 @@ All datasets are organized in the `datasets/` directory and documented in detail
 
 ---
 
-## Project Structure
-```
-bulk_product_generator/
-│
-├── README.md                         # This file
-├── LICENSE                           # Project license
-├── .gitignore                        # Git exclusions
-├── .gitattributes                    # Git LFS configuration
-├── .env.example                      # Environment variable template
-│
-├── datasets/                         # Organized datasets (Git LFS)
-│   ├── README.md                     # Dataset documentation
-│   ├── raw/                          # Original generated data
-│   ├── processed/                    # Validated + footprint data
-│   ├── reference/                    # Material & transport factors
-│   ├── splits/                       # Train/validation splits
-│   └── model_outputs/                # Model predictions & metrics
-│       ├── baseline/
-│       └── robustness/
-│
-├── data/                             # Data processing modules
-│   ├── data_creation/                # Product generation (Python)
-│   │   ├── config/                   # Configuration files
-│   │   ├── data/                     # Input category definitions
-│   │   ├── scripts/                  # Executable scripts
-│   │   ├── fashion_generator/        # Core generator module
-│   │   ├── output/                   # Generated outputs
-│   │   └── requirements.txt          # Python dependencies
-│   │
-│   ├── data_correction/              # Data validation (Python)
-│   │   ├── scripts/
-│   │   │   ├── validation/           # Schema validation
-│   │   │   ├── cleanup/              # Data correction
-│   │   │   └── analysis/             # Data analysis
-│   │   ├── input/                    # Input files
-│   │   └── output/                   # Corrected outputs
-│   │
-│   ├── data_calculations/            # Footprint calculation (C)
-│   │   ├── src/
-│   │   │   ├── carbon/               # Carbon calculators
-│   │   │   ├── water/                # Water calculators
-│   │   │   ├── utils/                # CSV/JSON parsers
-│   │   │   └── footprint_calculator.c
-│   │   ├── include/                  # Header files
-│   │   ├── build/                    # Compiled binaries
-│   │   ├── input/                    # Input data
-│   │   ├── output/                   # Output data
-│   │   ├── Makefile                  # Build system
-│   │   └── README.md                 # Module documentation
-│   │
-│   └── data_splitter/                # Train/val splitting (Python)
-│       └── output/                   # Split outputs
-│
-├── models/                           # ML model training (Python)
-│   ├── train_model.py                # Training script
-│   ├── evaluate_model.py             # Evaluation script
-│   └── data_input/                   # Model input data
-│
-└── Trained-Implementation/           # Trained models & results
-    └── trained_model/
-        ├── baseline/                 # Baseline model
-        │   └── evaluation/
-        └── robustness/               # Robustness model
-            └── evaluation/
-```
-
----
-
-## Installation
-
-### Prerequisites
-**Required:**
-- Python 3.9+
-- GCC (C11 support)
-- Make
-- Git LFS
-
-**Python Libraries** (see `requirements.txt`):
-- google-generativeai
-- pandas
-- numpy
-- tensorflow/keras
-- scikit-learn
-- python-dotenv
-
-**C Libraries**:
-- libm (math library, usually included)
-- Standard C library
-
-### Setup Steps
-#### 1. Install Git LFS
-
-Git LFS is required to download the CSV dataset files.
-
-**Ubuntu/Debian:**
-```bash
-sudo apt-get install git-lfs
-git lfs install
-```
-
-**macOS:**
-```bash
-brew install git-lfs
-git lfs install
-```
-
-**Windows:**
-Download from https://git-lfs.github.com/
-
-#### 2. Clone Repository
-
-```bash
-git clone https://github.com/yourusername/bulk_product_generator.git
-cd bulk_product_generator
-git lfs pull  # Download LFS files (datasets)
-```
-
-#### 3. Python Environment
-
-```bash
-# Create virtual environment
-python3 -m venv venv
-
-# Activate (Linux/macOS)
-source venv/bin/activate
-
-# Activate (Windows)
-venv\Scripts\activate
-
-# Install dependencies
-pip install -r data/data_creation/requirements.txt
-```
-
-#### 4. Environment Variables
-
-```bash
-# Copy template
-cp .env.example .env
-
-# Edit .env and add your API key
-# GEMINI_API_KEY=your_api_key_here
-```
-
-**Get a Gemini API Key**:
-1. Visit https://ai.google.dev/
-2. Sign in with Google account
-3. Create API key
-4. Add to `.env` file
-
-#### 5. C Compilation (for footprint calculator)
-
-```bash
-cd data/data_calculations
-
-# Check requirements
-gcc --version  # Should show GCC with C11 support
-
-# Build
-make
-
-# Verify
-./build/footprint_calculator --help
-```
-
-#### 6. Verify Installation
-
-```bash
-# Test Python imports
-python -c "import google.generativeai; import pandas; import tensorflow; print('OK')"
-
-# Test data access
-ls datasets/processed/Product_data_with_footprints.csv
-
-# Test C calculator
-cd data/data_calculations
-make run
-```
-
----
-
 
 ## Citation
 If you use this dataset or code in your research, please cite:
@@ -1295,4 +1230,3 @@ For questions, suggestions, or collaboration:
 
 ---
 
-**Made for sustainability and data science**
