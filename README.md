@@ -82,8 +82,8 @@ Synthetic data is **artificially generated data** that mimics the statistical pr
 | **Availability** | Fashion LCA data is proprietary | Generate unlimited products |
 | **Completeness** | Often missing fields | All 8 attributes guaranteed |
 | **Scale** | Small datasets (100s-1000s) | 900,000 products |
-| **Cost** | Expensive to collect | XXX |
-| **Privacy** | Business-sensitive | XXX |
+| **Cost** | Expensive to collect | Low (API costs only) |
+| **Privacy** | Business-sensitive | No privacy concerns |
 
 ### How It Works (Simple Overview)
 
@@ -390,12 +390,12 @@ water_total = Σ (W × Pᵢ × WFᵢ)
 
 | Source | Usage | License |
 |--------|-------|---------|
-| [TU Delft Idemat 2026](https://www.ecocostsvalue.com/idemat/) | Material carbon factors | Academic |
-| [CE Delft STREAM 2020](https://cedelft.eu/) | Transport emission factors | Academic |
-| [CE Delft 2011 IWT Report](https://cedelft.eu/) | Modal split β parameters | Academic |
-| [Water Footprint Network](https://waterfootprint.org/) | Water factors | Open Access |
-| [GLEC Framework v3.0](https://www.smartfreightcentre.org/) | Transport methodology | Public |
-| [IATA Cargo Analysis 2024](https://www.iata.org/) | Air freight modal shares | Public |
+| [TU Delft Idemat 2026](https://www.ecocostsvalue.com/EVR/download.html) | Material carbon factors | Academic |
+| [CE Delft STREAM 2020](https://cedelft.eu/wp-content/uploads/sites/2/2021/03/CE_Delft_190325_STREAM_Freight_Transport_2020_FINAL.pdf) | Transport emission factors | Academic |
+| [CE Delft 2011 IWT Report](https://ce.nl/wp-content/uploads/2021/03/4330_IWT_EU_main_report.pdf) | Modal split β parameters | Academic |
+| [Water Footprint Network](https://waterfootprint.org/resources/WFA_Polyester_and__Viscose_2017.pdf) | Water factors | Open Access |
+| [GLEC Framework v3.0](https://smart-freight-centre-media.s3.amazonaws.com/documents/GLEC_FRAMEWORK_v3_UPDATED_25_10_23.pdf) | Transport methodology | Public |
+| [IATA Cargo Analysis Nov 2024](https://www.iata.org/en/iata-repository/publications/economic-reports/air-cargo-market-analysis-november-2024/) | Air freight modal shares | Public |
 
 ## Robust ML Model
 
@@ -485,22 +485,6 @@ X['formula_feature'] = weight * Σ(material_pct * emission_factor)
 
 #### 2. Native Branching for Missing Values ("The Fallback")
 XGBoost handles missing values (`NaN`) by learning a default direction at each split. We leverage this to create a **dual-path decision structure**:
-
-```mermaid
-graph TD
-    Root{Is Formula Available?}
-    Root -->|Yes| PathA[Physics Path]
-    Root -->|No| PathB[Statistical Path]
-    
-    PathA --> Leaf1[Output = Formula Result]
-    
-    PathB --> Split1{Category?}
-    Split1 -->|Jeans| Split2{Gender?}
-    Split1 -->|T-Shirt| Split3{Material?}
-    
-    Split2 -->|Male| Leaf2[~1.2 kgCO2e]
-    Split2 -->|Female| Leaf3[~0.9 kgCO2e]
-```
 
 - **Path A (Physics Path)**: When inputs are complete, `formula_feature` is valid. The model uses it directly. **Result: R² ≈ 1.0**
 - **Path B (Statistical Path)**: When inputs are missing, `formula_feature` is `NaN`. The model automatically routes the sample to a branch that splits on the **93 contextual features** (Category, Parent Category, Gender etc).
@@ -666,13 +650,12 @@ trained_model/
 bulk_product_generator/
 │
 ├── README.md                         # This file
-├── LICENSE                           # Project license
+├── CLAUDE.md                         # Development guidelines
 ├── .gitignore                        # Git exclusions
 ├── .gitattributes                    # Git LFS configuration
 ├── .env.example                      # Environment variable template
 │
 ├── datasets/                         # Organized datasets (Git LFS)
-│   ├── README.md                     # Dataset documentation
 │   ├── raw/                          # Original generated data
 │   ├── processed/                    # Validated + footprint data
 │   ├── reference/                    # Material & transport factors
@@ -708,15 +691,17 @@ bulk_product_generator/
 │   │   ├── build/                    # Compiled binaries
 │   │   ├── input/                    # Input data
 │   │   ├── output/                   # Output data
-│   │   ├── Makefile                  # Build system
-│   │   └── README.md                 # Module documentation
+│   │   ├── docs/                     # Documentation
+│   │   └── Makefile                  # Build system
 │   │
 │   └── data_splitter/                # Train/val splitting (Python)
 │       └── output/                   # Split outputs
 │
 ├── models/                           # ML model training (Python)
-│   ├── train_model.py                # Training script
-│   ├── evaluate_model.py             # Evaluation script
+│   ├── main.py                       # Main training script
+│   ├── train_max_accuracy.py         # Max accuracy training script
+│   ├── train_on_colab.ipynb          # Google Colab training notebook
+│   ├── src/                          # Source modules
 │   └── data_input/                   # Model input data
 │
 └── Trained-Implementation/           # Trained models & results
@@ -762,7 +747,7 @@ make run
 
 # Train models
 cd ../../models
-python train_model.py
+python main.py
 ```
 
 **Note**: The repository already contains pre-generated datasets in the `datasets/` directory, so you can skip steps 6 and directly use the data for analysis or model development.
@@ -826,11 +811,15 @@ Validate and correct generated data to ensure quality and consistency.
 ```bash
 cd data/data_correction
 
-# Run validation scripts
-python scripts/validation/validate_schema.py
+# Run validation and cleanup
+python scripts/validation/validate_and_clean.py
 
-# Run correction
-python scripts/cleanup/correct_data.py
+# Or run comprehensive cleanup
+python scripts/cleanup/comprehensive_cleanup.py
+
+# Fix specific issues
+python scripts/cleanup/fix_categories.py
+python scripts/cleanup/fix_gender.py
 ```
 
 **Validation Checks**:
@@ -892,14 +881,13 @@ Train neural networks to predict environmental footprints from product attribute
 cd models
 
 # Train baseline model
-python train_model.py --mode baseline --epochs 2000
+python main.py --mode baseline
 
-# Train robustness model (with data augmentation)
-python train_model.py --mode robustness --epochs 2000
+# Train robustness model (with feature dropout augmentation)
+python main.py --mode robustness
 
-# Evaluate models
-python evaluate_model.py --model baseline
-python evaluate_model.py --model robustness --test-corruption
+# Or use the max accuracy training script
+python train_max_accuracy.py
 ```
 
 **Model Architecture**:
@@ -1100,7 +1088,7 @@ for mat in all_materials:
 
 ## Datasets
 
-All datasets are organized in the `datasets/` directory and documented in detail in [`datasets/README.md`](datasets/README.md).
+All datasets are organized in the `datasets/` directory. Complete schema descriptions and data quality details are provided below.
 
 ### Quick Reference
 
@@ -1117,8 +1105,6 @@ All datasets are organized in the `datasets/` directory and documented in detail
 | **Robustness Results** | varies | Performance under corruption | `datasets/model_outputs/*/robustness_results.csv` |
 
 **File Format**: All datasets are CSV files tracked with Git LFS
-
-**Documentation**: See [`datasets/README.md`](datasets/README.md) for complete schema descriptions, data quality notes, and usage guidelines.
 
 > **Note**: Processed data (902k) contains more products than raw data (878k) because additional products were generated for underrepresented categories (e.g., Dresses, Gowns) to ensure balanced distribution across all 86 fashion categories. This improves ML model generalization.
 
@@ -1149,18 +1135,18 @@ While the code and synthetic product data are open source under MIT, this projec
 
 | Data Source | License / Terms | Usage |
 |-------------|-----------------|-------|
-| **[TU Delft Idemat 2026](https://www.ecocostsvalue.com/idemat/)** | Free for non-commercial use; commercial use requires license | Material carbon footprints |
-| **[Smart Freight Centre GLEC Framework](https://www.smartfreightcentre.org/glec/)** | Open for non-commercial use | Transport emission methodology |
-| **[CE Delft STREAM 2020](https://cedelft.eu/)** | Research and academic use permitted | Emission factors (road, rail, sea, inland waterway) |
-| **[Eurostat](https://ec.europa.eu/eurostat)** | Eurostat Open Data License (free reuse with attribution) | EU freight transport statistics |
-| **[IATA](https://www.iata.org/)** | Public reports; check terms for commercial use | Air cargo capacity data |
-| **[Water Footprint Network](https://waterfootprint.org/)** | Creative Commons / Open Access reports | Polyester & viscose water footprints |
+| **[TU Delft Idemat 2026](https://www.ecocostsvalue.com/EVR/download.html)** | Free for non-commercial use; commercial use requires license | Material carbon footprints |
+| **[Smart Freight Centre GLEC Framework v3.0](https://smart-freight-centre-media.s3.amazonaws.com/documents/GLEC_FRAMEWORK_v3_UPDATED_25_10_23.pdf)** | Open for non-commercial use | Transport emission methodology |
+| **[CE Delft STREAM 2020](https://cedelft.eu/wp-content/uploads/sites/2/2021/03/CE_Delft_190325_STREAM_Freight_Transport_2020_FINAL.pdf)** | Research and academic use permitted | Emission factors (road, rail, sea, inland waterway) |
+| **[Eurostat ROAD_GO_TA_MPLW](https://ec.europa.eu/eurostat/databrowser/product/view/ROAD_GO_TA_MPLW)** | Eurostat Open Data License (free reuse with attribution) | EU freight transport statistics |
+| **[IATA Air Cargo Market Analysis Nov 2024](https://www.iata.org/en/iata-repository/publications/economic-reports/air-cargo-market-analysis-november-2024/)** | Public reports; check terms for commercial use | Air cargo capacity data |
+| **[Water Footprint Network 2017 Reports](https://waterfootprint.org/resources/WFA_Polyester_and__Viscose_2017.pdf)** | Creative Commons / Open Access reports | Polyester & viscose water footprints |
 | **[ScienceDirect / Elsevier](https://www.sciencedirect.com/)** | Individual article licenses apply | Peer-reviewed water footprint studies |
 | **[MDPI Journals](https://www.mdpi.com/)** | Open Access (CC BY 4.0) | Recycled cotton LCA, jute fiber studies |
 | **[Springer Nature](https://link.springer.com/)** | Individual article licenses apply | Down feather ecosystem studies |
 | **[SAGE Journals](https://journals.sagepub.com/)** | Individual article licenses apply | Textile water consumption studies |
 | **[Fairtrade Foundation](https://www.fairtrade.net/)** | Open research reports | Organic cotton data |
-| **[CSIRO / Australian Wool Innovation](https://www.woolfacts.com/)** | Educational use permitted | Wool water footprint data |
+| **[Australian Wool Innovation](https://www.wool.com/)** | Educational use permitted | Wool water footprint data |
 
 ### Attribution Requirements
 
@@ -1177,44 +1163,44 @@ When using this project's datasets or results:
 - **[Google Gemini Team](https://ai.google.dev/)** for providing the API for synthetic product data generation
 
 ### Material Carbon Footprints
-- **[TU Delft Idemat 2026](https://www.ecocostsvalue.com/idemat/)** — Primary source for material carbon footprints (acrylic, cotton, elastane, jute, leather, linen, nylon, polyester, viscose, wool, and more)
-- **[Carbonfact](https://www.carbonfact.com/)** — Research-based carbon footprint values for polyester, vegan leather, and synthetic down
+- **[TU Delft Idemat 2026](https://www.ecocostsvalue.com/EVR/download.html)** — Primary source for material carbon footprints (acrylic, cotton, elastane, jute, leather, linen, nylon, polyester, viscose, wool, and more)
+- **[Carbonfact - Polyester](https://www.carbonfact.com/blog/knowledge/polyester-carbon-footprint)** — Research-based carbon footprint values for polyester, vegan leather, and synthetic down
 - **[MDPI Sustainability Journal](https://www.mdpi.com/2071-1050/16/14/5896)** — Recycled cotton fiber life cycle assessment (Portugal case study 2024)
 - **[PlasticsEurope TPU Eco-profile](https://www.plasticseurope.org/)** — Thermoplastic polyurethane (TPU) resin footprint data
 - **[Impactful Ninja](https://impactful.ninja/)** — Sustainability research for cashmere, hemp, and TENCEL Lyocell fabrics
 - **[CO2 Everything](https://www.co2everything.com/)** — Silk production carbon footprint data
 
 ### Material Water Footprints
-- **[Water Footprint Network](https://waterfootprint.org/)** — Polyester and viscose water footprint assessment (2017)
+- **[Water Footprint Network - Polyester & Viscose 2017](https://waterfootprint.org/resources/WFA_Polyester_and__Viscose_2017.pdf)** — Polyester and viscose water footprint assessment (2017)
 - **[ScienceDirect / Elsevier](https://www.sciencedirect.com/)** — Peer-reviewed water footprint studies for cashmere, natural rubber, steel, and silver
 - **[University of Nebraska-Lincoln Digital Commons](https://digitalcommons.unl.edu/)** — Cotton water footprint documentation
 - **[Fairtrade Foundation](https://www.fairtrade.net/)** — Organic cotton sustainability research
 - **[Springer Nature](https://link.springer.com/)** — Down feather ecosystem water consumption study
 - **[SAGE Journals](https://journals.sagepub.com/)** — Polyester and synthetic textiles water consumption research
 - **[Circumfauna](https://circumfauna.org/)** — Leather water footprint analysis
-- **[Arjen Hoekstra (WF Expert)](https://ayhoekstra.nl/)** — Water footprint presentations for hemp and flax/linen
-- **[MDPI Materials Journal](https://www.mdpi.com/1996-1944/13/16/3541)** — Jute fiber water footprint study
+- **[Arjen Hoekstra - Water Footprint Presentations](https://ayhoekstra.nl/downloads/Hoekstra-WaterFootprint-Presentation.pdf)** — Water footprint presentations for hemp and flax/linen
+- **[MDPI Materials Journal](https://www.mdpi.com/1996-1944/13/16/3541)** — Jute fiber water footprint study (1.55 m³/kg)
 - **[Wiley Online Library](https://onlinelibrary.wiley.com/)** — Silk production water usage in textile industry
 - **[Journée Mondiale](https://www.journee-mondiale.com/)** — Lyocell vs cotton water consumption comparison
 - **[Fulgar S.p.A.](https://www.fulgar.com/)** — Textile industry water consumption data for synthetic fibers
 - **[USGS Publications](https://pubs.usgs.gov/)** — Synthetic rubber water usage data
 - **[NCBI / NIH](https://www.ncbi.nlm.nih.gov/)** — Gold mining water footprint research
 - **[Polybags UK](https://www.polybags.co.uk/)** — Environmental data for brass/metal production
-- **[Wool Facts (CSIRO / AWI)](https://www.woolfacts.com/)** — Wool water usage (Wayne Meyer / CSIRO estimates)
+- **[Australian Wool Innovation](https://www.wool.com/)** — Wool water usage (CSIRO research)
 
 ### Transport Emission Factors
-- **[CE Delft STREAM 2020](https://cedelft.eu/)** — Emission factors for road, rail, inland waterway, and sea freight
-- **[CE Delft (2011)](https://cedelft.eu/)** — Modal split model parameters for inland waterway transport in the EU
-- **[Eurostat](https://ec.europa.eu/eurostat)** — EU road freight (ROAD_GO_TA_MPLW 2024) and short-sea shipping statistics
-- **[IATA Air Cargo Market Analysis (November 2024)](https://www.iata.org/)** — Global cargo capacity shares for air freight emission calculations
-- **[Smart Freight Centre GLEC Framework v3.0](https://www.smartfreightcentre.org/glec/)** — Global logistics emission calculation methodology
+- **[CE Delft STREAM 2020](https://cedelft.eu/wp-content/uploads/sites/2/2021/03/CE_Delft_190325_STREAM_Freight_Transport_2020_FINAL.pdf)** — Emission factors for road, rail, inland waterway, and sea freight
+- **[CE Delft 2011 - IWT in the EU](https://ce.nl/wp-content/uploads/2021/03/4330_IWT_EU_main_report.pdf)** — Modal split model parameters for inland waterway transport in the EU Rhine corridor
+- **[Eurostat ROAD_GO_TA_MPLW](https://ec.europa.eu/eurostat/databrowser/product/view/ROAD_GO_TA_MPLW)** — EU road freight (ROAD_GO_TA_MPLW 2024) and short-sea shipping statistics
+- **[IATA Air Cargo Market Analysis - November 2024](https://www.iata.org/en/iata-repository/publications/economic-reports/air-cargo-market-analysis-november-2024/)** — Global cargo capacity shares for air freight emission calculations (54.8% belly, 45.2% freighter)
+- **[Smart Freight Centre GLEC Framework v3.0](https://smart-freight-centre-media.s3.amazonaws.com/documents/GLEC_FRAMEWORK_v3_UPDATED_25_10_23.pdf)** — Global logistics emission calculation methodology (ISO 14083)
 
 ---
 
 ## Contact
 For questions, suggestions, or collaboration:
 
-- **GitHub Issues**: [Create an issue](https://github.com/yourusername/bulk_product_generator/issues)
+- **GitHub Issues**: [Create an issue](https://github.com/Avelero/Avelero_HydroCarbon/issues)
 - **Email**: moussa@avelero.com
 
 ---
