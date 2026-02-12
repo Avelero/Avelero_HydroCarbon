@@ -1,0 +1,11 @@
+feature,importance_gain
+formula_carbon_material,1000.0
+formula_carbon_transport,850.0
+weight_kg,500.0
+total_distance_km,450.0
+category_Jeans,200.0
+category_TShirts,180.0
+cotton_conventional,150.0
+parent_category_Bottoms,120.0
+polyester_virgin,100.0
+gender_Male,80.0

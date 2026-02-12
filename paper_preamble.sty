@@ -1,0 +1,129 @@
+% HydroCarbon Research Paper Style File
+% Custom LaTeX packages and commands for the HydroCarbon paper
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{paper_preamble}[2025/01/22 v1.0 HydroCarbon Paper Style]
+
+% Required packages
+\RequirePackage[utf8]{inputenc}
+\RequirePackage{amsmath,amssymb,amsfonts}
+\RequirePackage{graphicx}
+\RequirePackage{booktabs}
+\RequirePackage{hyperref}
+\RequirePackage{fancyhdr}
+\RequirePackage{geometry}
+\RequirePackage{xcolor}
+\RequirePackage{listings}
+\RequirePackage{enumitem}
+\RequirePackage{tikz}
+\RequirePackage{pgfplots}
+\RequirePackage{caption}
+\RequirePackage{subcaption}
+
+% Page geometry
+\geometry{
+    a4paper,
+    left=25mm,
+    right=25mm,
+    top=30mm,
+    bottom=30mm,
+    headheight=15pt
+}
+
+% Hyperref setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+    citecolor=green!50!black,
+    pdftitle={HydroCarbon: A Physics-Informed Machine Learning Model for Environmental Footprint Prediction},
+    pdfauthor={Avelero Project},
+    pdfsubject={Environmental Footprint Modeling},
+    pdfkeywords={carbon footprint, water footprint, machine learning, XGBoost, fashion industry}
+}
+
+% Custom commands
+\newcommand{\hydrocarbon}{\textsc{HydroCarbon}}
+\newcommand{\co2}{CO\textsubscript{2}}
+\newcommand{\Rsq}{$R^2$}
+\newcommand{\etal}{\textit{et al.}}
+\newcommand{\eg}{e.g.,}
+\newcommand{\ie}{i.e.,}
+
+% Custom environments
+\newenvironment{shortnote}[1][]
+  {\begin{quote}\small\textbf{Note: }\ignorespaces}
+  {\end{quote}}
+
+% Listing style
+\lstdefinestyle{pythonstyle}{
+    language=Python,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10}
+}
+
+% Custom theorem-like environments
+\newtheorem{definition}{Definition}[section]
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{corollary}{Corollary}[section]
+
+% Table formatting
+\setlength{\tabcolsep}{8pt}
+\renewcommand{\arraystretch}{1.2}
+
+% Header and footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\hydrocarbon{} Model Research Paper}
+\fancyhead[R]{Avelero Project}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% Caption formatting
+\captionsetup{
+    font=small,
+    labelfont=bf,
+    labelsep=period,
+    skip=6pt
+}
+
+% Tikz styles
+\tikzstyle{block} = [rectangle, draw, fill=blue!20, text width=8em, text centered, minimum height=4em, rounded corners]
+\tikzstyle{inputblock} = [rectangle, draw, fill=green!20, text width=6em, text centered, minimum height=3em]
+\tikzstyle{outputblock} = [rectangle, draw, fill=red!20, text width=6em, text centered, minimum height=3em]
+\tikzstyle{arrow} = [draw, -latex', thick]
+\tikzstyle{smallblock} = [rectangle, draw, fill=yellow!20, text width=5em, text centered, minimum height=2.5em, font=\small]
+\tikzstyle{formulablock} = [rectangle, draw, fill=orange!20, text width=7em, text centered, minimum height=3em]
+
+% Color definitions
+\definecolor{hydrocarbonblue}{RGB}{70,130,180}
+\definecolor{hydrocarbongreen}{RGB}{34,139,34}
+\definecolor{hydrocarbonred}{RGB}{220,20,60}
+\definecolor{hydrocarbonyellow}{RGB}{255,215,0}
+
+% Mathematical operators
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator{\E}{\mathbb{E}}
+\DeclareMathOperator{\Var}{\mathbb{V}ar}
+\DeclareMathOperator{\Cov}{\mathbb{C}ov}
+
+% No indentation for new paragraphs
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+
+% Document title formatting
+\renewcommand{\maketitle}{\begin{center}\Large\bfseries\hydrocarbon: A Physics-Informed Machine Learning Model for Environmental Footprint Prediction in Fashion Products\\[12pt]\largeResearch Paper\\[6pt]\normalsize Avelero Project\\[6pt]\today\end{center}\vspace{12pt}}
+
+\endinput

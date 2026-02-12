@@ -1,0 +1,41 @@
+
+% Generated LaTeX commands for loading supplementary data
+\newcommand{\loadsupplementarydata}{
+    % Load material factors
+    \pgfplotstableread[col sep=comma]{supplementary_material_factors_top10.csv}\materialfactors
+    
+    % Load transport parameters  
+    \pgfplotstableread[col sep=comma]{supplementary_transport_params.csv}\transportparams
+    
+    % Load model performance
+    \pgfplotstableread[col sep=comma]{supplementary_model_performance.csv}\modelperformance
+    
+    % Load feature importance
+    \pgfplotstableread[col sep=comma]{supplementary_feature_importance.csv}\featureimportance
+}
+
+% Command to include model summary
+\newcommand{\includeModelSummary}{
+    \begin{verbatim}
+    \input{model_summary.txt}
+    \end{verbatim}
+}
+
+% Figures
+\newcommand{\includePerformanceChart}{
+    \begin{figure}[h]
+        \centering
+        \includegraphics[width=0.9\textwidth]{model_performance_chart.png}
+        \caption{Model performance under varying levels of missing data}
+        \label{fig:performance}
+    \end{figure}
+}
+
+\newcommand{\includeFeatureImportanceChart}{
+    \begin{figure}[h]
+        \centering
+        \includegraphics[width=0.9\textwidth]{feature_importance_plot.png}
+        \caption{Top 20 most important features in the XGBoost model}
+        \label{fig:importance}
+    \end{figure}
+}

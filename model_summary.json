@@ -1,0 +1,37 @@
+{
+  "model_name": "HydroCarbon",
+  "version": "2.0",
+  "description": "Physics-informed ML model for environmental footprint prediction in fashion products",
+  "architecture": {
+    "type": "XGBoost Multi-Output Regressor",
+    "n_estimators": 1000,
+    "max_depth": 8,
+    "learning_rate": 0.05,
+    "input_features": 129,
+    "output_targets": 4
+  },
+  "training_data": {
+    "total_samples": 676178,
+    "validation_samples": 225393,
+    "test_samples": "N/A (uses validation)",
+    "features_per_sample": 129
+  },
+  "performance": {
+    "complete_data_r2": 0.9999,
+    "missing_40_percent_r2": 0.936,
+    "best_mae_carbon_total": 0.044,
+    "best_mae_water_total": 115.3
+  },
+  "components": {
+    "carbon_material": "Material production emissions (cradle-to-gate)",
+    "carbon_transport": "Transport emissions using modal split model",
+    "carbon_total": "Sum of material and transport emissions",
+    "water_total": "Water consumption in production"
+  },
+  "files": {
+    "model_weights": "xgb_model.json",
+    "preprocessor": "preprocessor.pkl",
+    "config": "trainer_config.pkl",
+    "evaluation": "evaluation_report.json"
+  }
+}

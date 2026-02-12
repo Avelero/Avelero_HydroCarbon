@@ -1,0 +1,6 @@
+mode,emission_factor_gCO2e_per_tkm,beta_0,beta_1,description
+Road,72.9,0.0,0.0,Reference mode - Heavy goods vehicles
+Rail,22.0,-10.537,1.372,Generic freight rail
+Inland Waterway,31.0,-5.77,0.762,Generic barge transport
+Sea,10.3,-17.108,2.364,"Sea freight (75% deep-sea, 25% short-sea)"
+Air,782.0,-17.345,1.881,"Air freight (48.4% freighter, 51.6% belly-hold)"
